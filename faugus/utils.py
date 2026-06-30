@@ -579,6 +579,18 @@ def view_filter_matches(game, view, recent_ids, search_text=""):
     # library (or unknown) shows everything
     return True
 
+
+def normalize_view(value):
+    """Return a valid view name, defaulting to library for unknown inputs.
+
+    Used to sanitize config values loaded from disk — anything we don't
+    recognize becomes ``VIEW_LIBRARY`` so the UI never gets stuck in an
+    invalid state.
+    """
+    if value in VALID_VIEWS:
+        return value
+    return VIEW_LIBRARY
+
 def init_addon_defaults(obj):
     obj.addapp_enabled = False
     obj.addapp = ""

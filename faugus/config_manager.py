@@ -42,6 +42,8 @@ class ConfigManager:
             'banner-size': '100',
             'sort': 'alpha',
             'category': 'all',
+            'current-view': 'library',
+            'show-sidebar': 'True',
         }
 
         self.config = {}

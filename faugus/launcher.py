@@ -531,12 +531,109 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         self.latest_games_order = {}
         self.custom_order_data = {}
 
+        # Sidebar view state: library / recents / favorites
+        cfg = ConfigManager()
+        self.current_view = normalize_view(cfg.config.get('current-view', VIEW_LIBRARY))
+        self.show_sidebar = cfg.config.get('show-sidebar', 'True') != 'False'
+        self.sidebar_buttons = {}  # view_name -> Gtk.Button, set in build_sidebar
+        self.sidebar_widget = None  # the sidebar Gtk.Box, set in build_sidebar
+
         self.button_category = Gtk.Button(label=self.current_category)
         self.button_category.set_size_request(110, -1)
         self.button_category.connect("clicked", self.on_category_button_clicked)
 
         self.button_sort = Gtk.Button(label=self.current_sort)
         self.button_sort.set_size_request(110, -1)
+
+        # Build the left-hand sidebar (Library / Recents / Favorites)
+        self.sidebar = self.build_sidebar()
+
+    # ------------------------------------------------------------------
+    # Sidebar view methods (Library / Recents / Favorites)
+    # ------------------------------------------------------------------
+
+    def set_view(self, view):
+        """Switch the main flowbox to a different view (library/recents/favorites)."""
+        view = normalize_view(view)
+        if view == self.current_view:
+            # Still refresh button states (idempotent)
+            self._update_sidebar_button_states()
+            return
+        self.current_view = view
+        try:
+            cfg = ConfigManager()
+            cfg.set_value("current-view", view)
+        except Exception:
+            pass
+        self._update_sidebar_button_states()
+        if hasattr(self, 'flowbox'):
+            self.flowbox.invalidate_filter()
+
+    def _update_sidebar_button_states(self):
+        """Apply the 'active' style class to the active view's button."""
+        for name, btn in self.sidebar_buttons.items():
+            ctx = btn.get_style_context()
+            if name == self.current_view:
+                ctx.add_class("sidebar-active")
+            else:
+                ctx.remove_class("sidebar-active")
+
+    def toggle_sidebar_visibility(self):
+        """Show or hide the sidebar widget and persist the new state."""
+        self.show_sidebar = not self.show_sidebar
+        if self.sidebar_widget is not None:
+            self.sidebar_widget.set_visible(self.show_sidebar)
+        try:
+            cfg = ConfigManager()
+            cfg.set_value("show-sidebar", str(self.show_sidebar))
+        except Exception:
+            pass
+
+    def build_sidebar(self):
+        """Build the left-hand sidebar with three view-toggle buttons.
+
+        Returns the sidebar ``Gtk.Box`` ready to be packed into a parent
+        container. Stores the three buttons in ``self.sidebar_buttons`` and
+        the box itself in ``self.sidebar_widget`` so the visibility toggle
+        can find them later.
+        """
+        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        sidebar.set_margin_top(10)
+        sidebar.set_margin_bottom(10)
+        sidebar.set_margin_start(8)
+        sidebar.set_margin_end(8)
+        sidebar.set_size_request(140, -1)
+        sidebar.get_style_context().add_class("sidebar")
+
+        items = [
+            (VIEW_LIBRARY,    _("Library"),   "library"),
+            (VIEW_RECENTS,    _("Recents"),   "recents"),
+            (VIEW_FAVORITES,  _("Favorites"), "favorites"),
+        ]
+        for view_name, label, icon_name in items:
+            btn = Gtk.Button()
+            btn.set_relief(Gtk.ReliefStyle.NONE)
+            hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            hbox.set_margin_top(6)
+            hbox.set_margin_bottom(6)
+            hbox.set_margin_start(6)
+            hbox.set_margin_end(6)
+            icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.BUTTON)
+            text = Gtk.Label(label=label)
+            text.set_halign(Gtk.Align.START)
+            text.set_hexpand(True)
+            hbox.pack_start(icon, False, False, 0)
+            hbox.pack_start(text, True, True, 0)
+            btn.add(hbox)
+            btn.connect("clicked", lambda _w, v=view_name: self.set_view(v))
+            sidebar.pack_start(btn, False, False, 0)
+            self.sidebar_buttons[view_name] = btn
+
+        self.sidebar_widget = sidebar
+        # Apply initial active state and visibility
+        self._update_sidebar_button_states()
+        sidebar.set_visible(self.show_sidebar)
+        return sidebar
 
         def update_sort_data():
             self.playtime_data.clear()
@@ -873,6 +970,9 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             self.main_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             self.box_main.pack_start(self.main_hbox, True, True, 0)
 
+            # Sidebar (Library / Recents / Favorites) on the left
+            self.main_hbox.pack_start(self.sidebar, False, False, 0)
+
             right_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             self.main_hbox.pack_start(right_vbox, True, True, 0)
 
@@ -886,6 +986,15 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             bottom_bar.set_margin_end(10)
 
             bottom_bar.pack_start(self.zoom_slider, False, False, 0)
+
+            # Sidebar visibility toggle
+            self.button_sidebar_toggle = Gtk.Button()
+            self.button_sidebar_toggle.set_relief(Gtk.ReliefStyle.NONE)
+            self.button_sidebar_toggle.set_tooltip_text(_("Toggle sidebar"))
+            toggle_icon = Gtk.Image.new_from_icon_name("sidebar-show", Gtk.IconSize.BUTTON)
+            self.button_sidebar_toggle.add(toggle_icon)
+            self.button_sidebar_toggle.connect("clicked", lambda _w: self.toggle_sidebar_visibility())
+            bottom_bar.pack_start(self.button_sidebar_toggle, False, False, 0)
 
             if getattr(self, 'show_categories', True):
                 box_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -911,6 +1020,13 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             self.box_top = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             self.box_bottom = Gtk.Box()
 
+            # Sidebar in small mode: re-orient the box to horizontal so the
+            # three view buttons sit side-by-side at the top of the window.
+            self.sidebar.set_orientation(Gtk.Orientation.HORIZONTAL)
+            self.sidebar.set_margin_top(6)
+            self.sidebar.set_margin_bottom(0)
+            self.box_top.pack_start(self.sidebar, False, False, 0)
+
             if getattr(self, 'show_categories', True):
                 top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
                 top_bar.set_margin_top(10)
@@ -931,11 +1047,19 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             grid_controls.set_margin_end(10)
             self.entry_search.set_hexpand(True)
 
-            grid_controls.attach(self.button_add,   0, 0, 1, 1)
-            grid_controls.attach(self.button_settings,   1, 0, 1, 1)
-            grid_controls.attach(self.entry_search, 2, 0, 1, 1)
-            grid_controls.attach(self.button_kill,       3, 0, 1, 1)
-            grid_controls.attach(self.button_play,  4, 0, 1, 1)
+            # Sidebar visibility toggle (small mode)
+            self.button_sidebar_toggle = Gtk.Button()
+            self.button_sidebar_toggle.set_relief(Gtk.ReliefStyle.NONE)
+            self.button_sidebar_toggle.set_tooltip_text(_("Toggle sidebar"))
+            toggle_icon = Gtk.Image.new_from_icon_name("sidebar-show", Gtk.IconSize.BUTTON)
+            self.button_sidebar_toggle.add(toggle_icon)
+            self.button_sidebar_toggle.connect("clicked", lambda _w: self.toggle_sidebar_visibility())
+            grid_controls.attach(self.button_sidebar_toggle, 0, 0, 1, 1)
+            grid_controls.attach(self.button_add,   1, 0, 1, 1)
+            grid_controls.attach(self.button_settings,   2, 0, 1, 1)
+            grid_controls.attach(self.entry_search, 3, 0, 1, 1)
+            grid_controls.attach(self.button_kill,       4, 0, 1, 1)
+            grid_controls.attach(self.button_play,  5, 0, 1, 1)
 
             self.box_bottom.pack_start(grid_controls, True, True, 0)
 
