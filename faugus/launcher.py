@@ -226,6 +226,10 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         self.menu_hide.connect("activate", self.on_context_menu_hide)
         self.context_menu.append(self.menu_hide)
 
+        self.menu_favorite = Gtk.MenuItem(label=_("Add to favorites"))
+        self.menu_favorite.connect("activate", self.on_context_menu_favorite)
+        self.context_menu.append(self.menu_favorite)
+
         self.menu_category = Gtk.MenuItem(label=_("Category"))
         self.submenu_category = Gtk.Menu()
         self.menu_category.set_submenu(self.submenu_category)
@@ -1482,6 +1486,11 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
                 else:
                     self.menu_hide.get_child().set_text(_("Hide"))
 
+                if getattr(game, 'favorite', False):
+                    self.menu_favorite.get_child().set_text(_("Remove from favorites"))
+                else:
+                    self.menu_favorite.get_child().set_text(_("Add to favorites"))
+
                 for child in self.submenu_category.get_children():
                     self.submenu_category.remove(child)
 
@@ -1631,6 +1640,18 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
         self.update_list()
         self.select_first_child()
+
+    def on_context_menu_favorite(self, menu_item):
+        game = self.selected()
+        if not game:
+            return
+        new_state = self.toggle_favorite(game.gameid)
+        # Update the menu label to reflect the new state for the next time
+        # the menu is opened.
+        if new_state is True:
+            self.menu_favorite.get_child().set_text(_("Remove from favorites"))
+        else:
+            self.menu_favorite.get_child().set_text(_("Add to favorites"))
 
     def on_context_menu_category(self, menu_item, category_name, selected_gameid):
         try:
@@ -2232,9 +2253,48 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             overlay.set_overlay_pass_through(anim_box, True)
         except AttributeError:
             pass
+
+        # Favorite star button (top-right corner overlay)
+        favorite_btn = Gtk.Button()
+        favorite_btn.set_relief(Gtk.ReliefStyle.NONE)
+        favorite_btn.set_halign(Gtk.Align.END)
+        favorite_btn.set_valign(Gtk.Align.START)
+        favorite_btn.set_margin_top(4)
+        favorite_btn.set_margin_end(4)
+        favorite_btn.get_style_context().add_class("favorite-toggle")
+        star_image = Gtk.Image.new_from_icon_name(
+            "starred" if getattr(game, 'favorite', False) else "non-starred",
+            Gtk.IconSize.SMALL_TOOLBAR,
+        )
+        favorite_btn.add(star_image)
+        favorite_btn.connect("clicked", self._on_favorite_button_clicked, game)
+        if getattr(game, 'favorite', False):
+            favorite_btn.get_style_context().add_class("favorite-active")
+        overlay.add_overlay(favorite_btn)
+        try:
+            overlay.set_overlay_pass_through(favorite_btn, True)
+        except AttributeError:
+            pass
+        self.flowbox_child.favorite_btn = favorite_btn
+        self.flowbox_child.favorite_icon = star_image
+
         self.flowbox_child.add(overlay)
 
         self.flowbox.add(self.flowbox_child)
+
+    def _on_favorite_button_clicked(self, button, game):
+        """Handle a click on the star button on a game card."""
+        new_state = self.toggle_favorite(game.gameid)
+        if new_state is True:
+            button.get_style_context().add_class("favorite-active")
+            button.get_image().set_from_icon_name(
+                "starred", Gtk.IconSize.SMALL_TOOLBAR
+            )
+        else:
+            button.get_style_context().remove_class("favorite-active")
+            button.get_image().set_from_icon_name(
+                "non-starred", Gtk.IconSize.SMALL_TOOLBAR
+            )
 
     def update_game_visual(self, flowbox_child):
         game = flowbox_child.game
