@@ -2402,6 +2402,19 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
         self.load_tray_icon()
 
+    def toggle_favorite(self, gameid):
+        """Flip the favorite flag on a game and persist to games.json.
+
+        Returns the new favorite state, or None if the game was not found.
+        """
+        for game in self.games:
+            if game.gameid == gameid:
+                game.favorite = not game.favorite
+                set_favorite_in_json(games_json, gameid, game.favorite)
+                self.flowbox.invalidate_filter()
+                return game.favorite
+        return None
+
     def on_button_kill_clicked(self, widget):
         if not IS_FLATPAK:
             for gameid, pid in list(self.running.items()):

@@ -93,6 +93,24 @@ def save_json_file(data, filepath, indent=4):
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=indent, ensure_ascii=False)
 
+
+def set_favorite_in_json(games_file, gameid, favorite):
+    """Set the favorite flag for one game in games.json.
+
+    Returns True if a matching game was found and updated, False otherwise.
+    Does not raise on missing/corrupt files.
+    """
+    data = load_json_file(games_file, [])
+    updated = False
+    for entry in data:
+        if isinstance(entry, dict) and entry.get("gameid") == gameid:
+            entry["favorite"] = bool(favorite)
+            updated = True
+            break
+    if updated:
+        save_json_file(data, games_file)
+    return updated
+
 def format_title(title):
     title = title.strip().lower()
     title = re.sub(r"[^\w\s-]", "", title)
