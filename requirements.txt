@@ -1,0 +1,17 @@
+# Core
+requests
+vdf
+psutil
+pillow
+pygame
+
+# Utilities
+icoextract
+dbus-python
+
+# System dependencies (not pip-installable on most distros):
+# - python3-gi (PyGObject + GTK3 bindings)
+# - libayatana-appindicator (or libappindicator)
+# - libcanberra
+# - imagemagick
+# - vulkan-tools
