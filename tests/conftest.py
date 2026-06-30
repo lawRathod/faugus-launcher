@@ -16,6 +16,12 @@ import pytest
 # pure-Python objects that don't touch a display server.
 os.environ.setdefault("GDK_BACKEND", "broadway")
 
+# Importing faugus.launcher pins the Gtk namespace to version 3.0 (it calls
+# gi.require_version('Gtk', '3.0')). Do this once at conftest load time so
+# that subsequent test modules that touch Gtk don't trigger a version
+# conflict (faugus.utils imports Gtk without a version, defaulting to 4.0).
+import faugus.launcher  # noqa: E402,F401
+
 
 # --- Path isolation ---------------------------------------------------------
 

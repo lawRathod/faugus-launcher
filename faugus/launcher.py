@@ -854,7 +854,16 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
                         game_cats = [_("None")]
                     matches_category = (self.current_category in game_cats)
 
-            return matches_search and matches_category
+            # Sidebar view filter (Library / Recents / Favorites)
+            current_view = getattr(self, 'current_view', VIEW_LIBRARY)
+            recent_ids = set(self.latest_games_order.keys()) if hasattr(self, 'latest_games_order') else set()
+            matches_view = view_filter_matches(
+                game={"gameid": game.gameid, "title": game.title, "favorite": getattr(game, 'favorite', False)},
+                view=current_view,
+                recent_ids=recent_ids,
+            )
+
+            return matches_search and matches_category and matches_view
 
         self.flowbox.set_sort_func(sort_games, None)
         self.flowbox.set_filter_func(filter_games, None)

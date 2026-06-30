@@ -531,6 +531,36 @@ def prepare_game_kwargs(data):
                      "category": False, "icon": "", "favorite": False})
     return {f: data.get(f, defaults[f]) for f in GAME_FIELDS}
 
+
+# Valid sidebar views the main window can be in.
+VIEW_LIBRARY = "library"
+VIEW_RECENTS = "recents"
+VIEW_FAVORITES = "favorites"
+VALID_VIEWS = (VIEW_LIBRARY, VIEW_RECENTS, VIEW_FAVORITES)
+
+
+def view_filter_matches(game, view, recent_ids, search_text=""):
+    """Decide whether a game passes the sidebar view filter.
+
+    Args:
+        game: dict-like with keys ``gameid``, ``title``, ``favorite``.
+        view: one of ``"library"``, ``"recents"``, ``"favorites"``. Unknown
+            values are treated as ``"library"`` (show all) for forward-compat.
+        recent_ids: iterable of gameids currently listed in latest-games.txt.
+        search_text: lowercased substring the title must contain. Empty
+            disables the search filter. (Reserved for future use; the search
+            filter is applied separately in the GTK layer.)
+
+    Returns:
+        True if the game should be visible under the given view.
+    """
+    if view == VIEW_RECENTS:
+        return game.get("gameid") in set(recent_ids)
+    if view == VIEW_FAVORITES:
+        return bool(game.get("favorite"))
+    # library (or unknown) shows everything
+    return True
+
 def init_addon_defaults(obj):
     obj.addapp_enabled = False
     obj.addapp = ""
