@@ -4581,6 +4581,7 @@ class Game:
         prevent_sleep,
         category,
         icon,
+        favorite=False,
     ):
         self.gameid = gameid
         self.title = title
@@ -4610,6 +4611,7 @@ class Game:
         self.prevent_sleep = prevent_sleep
         self.category = category
         self.icon = icon
+        self.favorite = favorite
 
 class DuplicateDialog(Gtk.Dialog):
     def __init__(self, parent, title):

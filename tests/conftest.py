@@ -1,48 +1,20 @@
-"""Pytest configuration and shared fixtures for Faugus Launcher tests."""
+"""Pytest configuration and shared fixtures for Faugus Launcher tests.
+
+We use the *real* PyGObject / GTK3 stack, which can be imported and class-
+introspected on a headless system (no DISPLAY required). Tests that actually
+instantiate GTK windows should be marked @pytest.mark.gui and skipped via
+`pytest -m "not gui"` in headless CI.
+"""
 import os
-import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-# Force headless mode for tests so the gi mock is always installed
-os.environ.setdefault("FAUGUS_TEST_HEADLESS", "1")
-
-
-# --- gi (PyGObject) mock ----------------------------------------------------
-# We mock the GTK/GLib stack so that test collection can import the launcher
-# module on a headless system (no display server). Tests that exercise real
-# GTK widgets should be marked @pytest.mark.gui and skipped in headless runs.
-
-try:
-    import gi  # noqa: F401
-    HAS_GI = True
-except ImportError:
-    HAS_GI = False
-
-
-def _install_gi_mock():
-    """Install a MagicMock-based stub for gi.* and faugus.config_manager.
-
-    Lets us import faugus.launcher in a headless environment. Methods called
-    on the mocks are auto-generated, so tests can configure return values per
-    test case.
-    """
-    sys.modules["gi"] = MagicMock()
-    sys.modules["gi.repository"] = MagicMock()
-    # Sub-modules commonly accessed via gi.repository.* need to be mockable too
-    gi_repo = sys.modules["gi.repository"]
-    for name in (
-        "Gtk", "Gdk", "GLib", "GdkPixbuf", "Pango",
-        "AyatanaAppIndicator3", "GObject",
-    ):
-        setattr(gi_repo, name, MagicMock())
-
-
-if not HAS_GI or os.environ.get("FAUGUS_TEST_HEADLESS") == "1":
-    _install_gi_mock()
+# Use a non-X11 GDK backend where possible so widget construction doesn't
+# require a display. This still allows importing GTK classes and constructing
+# pure-Python objects that don't touch a display server.
+os.environ.setdefault("GDK_BACKEND", "broadway")
 
 
 # --- Path isolation ---------------------------------------------------------

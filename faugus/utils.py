@@ -509,7 +509,7 @@ GAME_FIELDS = [
     "banner",
     "lossless_enabled", "lossless_multiplier", "lossless_flow",
     "lossless_performance", "lossless_hdr", "lossless_present",
-    "playtime", "hidden", "prevent_sleep", "category", "icon",
+    "playtime", "hidden", "prevent_sleep", "category", "icon", "favorite",
 ]
 
 def game_to_dict(game):
@@ -528,7 +528,7 @@ def game_to_save_dict(game, hidden=None):
 def prepare_game_kwargs(data):
     defaults = {f: "" for f in GAME_FIELDS}
     defaults.update({"playtime": 0, "hidden": False, "prevent_sleep": False,
-                     "category": False, "icon": ""})
+                     "category": False, "icon": "", "favorite": False})
     return {f: data.get(f, defaults[f]) for f in GAME_FIELDS}
 
 def init_addon_defaults(obj):
