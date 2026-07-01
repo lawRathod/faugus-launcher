@@ -4,6 +4,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from faugus.path_manager import PathManager, IS_FLATPAK, games_json, compatibility_dir, proton_cachyos, mangohud_dir, gamemoderun
 from gi.repository import Gtk, Gdk, Gio, GLib, GdkPixbuf, Pango
@@ -92,6 +93,78 @@ def save_json_file(data, filepath, indent=4):
     ensure_parent_dir(filepath)
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=indent, ensure_ascii=False)
+
+
+def load_recents(recents_file):
+    """Load the recents.json file and return ``{gameid: timestamp}``.
+
+    Returns an empty dict if the file is missing, empty, or malformed.
+    Non-dict values (e.g. someone hand-edited a list) are also normalised
+    to an empty dict.
+    """
+    data = load_json_file(recents_file, {})
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): float(v) for k, v in data.items() if isinstance(v, (int, float))}
+
+
+def save_recents(recents_file, recents):
+    """Write the ``{gameid: timestamp}`` map to recents.json atomically."""
+    save_json_file(recents, recents_file, indent=2)
+
+
+def touch_recent(recents_file, gameid):
+    """Record that ``gameid`` was just launched.
+
+    Loads the existing map, sets ``gameid`` to the current epoch time,
+    and writes the result back. Returns the updated dict.
+    """
+    recents = load_recents(recents_file)
+    recents[gameid] = time.time()
+    save_recents(recents_file, recents)
+    return recents
+
+
+def clear_recents(recents_file):
+    """Remove the recents file (no-op if it doesn't exist)."""
+    try:
+        if os.path.exists(recents_file):
+            os.remove(recents_file)
+    except OSError:
+        pass
+
+
+def format_recent_age(timestamp, now=None):
+    """Return a short human-readable age string for a recents timestamp.
+
+    Examples: ``"just now"``, ``"5 min ago"``, ``"2 h ago"``,
+    ``"yesterday"``, ``"3 d ago"``, ``"2 w ago"``.
+
+    Anything older than ~6 months returns ``None`` so the caller can hide
+    the label instead of showing a long, unhelpful string.
+    """
+    if timestamp is None:
+        return None
+    if now is None:
+        now = time.time()
+    delta = now - float(timestamp)
+    if delta < 0:
+        return "just now"
+    if delta < 60:
+        return "just now"
+    if delta < 3600:
+        return f"{int(delta // 60)} min ago"
+    if delta < 86400:
+        return f"{int(delta // 3600)} h ago"
+    days = int(delta // 86400)
+    if days == 1:
+        return "yesterday"
+    if days < 14:
+        return f"{days} d ago"
+    weeks = days // 7
+    if weeks < 26:
+        return f"{weeks} w ago"
+    return None
 
 
 def set_favorite_in_json(games_file, gameid, favorite):
@@ -457,12 +530,11 @@ def update_games_json():
             game["runner"] = "Proton-CachyOS (System)"
             changed = True
 
-        if "favorite" in game:
-            if game["favorite"] == True:
-                game["category"] = False
-
-            game.pop("favorite")
-            changed = True
+        # NOTE: ``favorite`` is a real, user-facing field (toggled from the
+        # sidebar's Favorites view and the right-click / star menu). Earlier
+        # versions of Faugus repurposed an old "favorite" key as a category
+        # marker and stripped it here, which silently destroyed any favorites
+        # the user had set. We now keep the field untouched.
 
         game_id = game.get("gameid")
 

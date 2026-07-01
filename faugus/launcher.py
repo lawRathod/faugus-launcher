@@ -39,6 +39,7 @@ else:
     GLib.set_prgname("faugus-launcher")
 
 latest_games = PathManager.user_config('faugus-launcher/latest-games.txt')
+recents_json = PathManager.user_config('faugus-launcher/recents.json')
 categories_file = PathManager.user_config('faugus-launcher/categories.txt')
 custom_order = PathManager.user_config('faugus-launcher/custom-order.json')
 presets_file = PathManager.user_config('faugus-launcher/presets.json')
@@ -191,6 +192,24 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
                 color: @theme_bg_color;
                 outline: none;
             }
+            .sidebar {
+                border-right: 1px solid alpha(@theme_text_color, 0.12);
+                background-color: alpha(@theme_base_color, 0.25);
+            }
+            .empty-state {
+                color: @theme_text_color;
+            }
+            .empty-state-icon {
+                color: alpha(@theme_text_color, 0.45);
+            }
+            .empty-state-title {
+                font-size: 1.15em;
+                font-weight: bold;
+                color: @theme_text_color;
+            }
+            .empty-state-subtitle {
+                color: alpha(@theme_text_color, 0.65);
+            }
         """)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), self.provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -251,6 +270,17 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         self.menu_show_logs.connect("activate", self.on_context_show_logs)
 
         self.load_config()
+
+        # Sidebar view state: library / recents / favorites
+        cfg = ConfigManager()
+        self.current_view = normalize_view(cfg.config.get('current-view', VIEW_LIBRARY))
+        self.show_sidebar = cfg.config.get('show-sidebar', 'True') != 'False'
+        self.sidebar_buttons = {}  # view_name -> Gtk.Button, set in build_sidebar
+        self.sidebar_widget = None  # the sidebar Gtk.Box, set in build_sidebar
+
+        # Build the left-hand sidebar (Library / Recents / Favorites) now
+        # so setup_interface can pack it into the layout.
+        self.sidebar = self.build_sidebar()
 
         if self.interface_mode == "List":
             self.setup_interface()
@@ -533,14 +563,8 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
         self.playtime_data = {}
         self.latest_games_order = {}
+        self.recent_games = {}  # gameid -> unix timestamp of last launch
         self.custom_order_data = {}
-
-        # Sidebar view state: library / recents / favorites
-        cfg = ConfigManager()
-        self.current_view = normalize_view(cfg.config.get('current-view', VIEW_LIBRARY))
-        self.show_sidebar = cfg.config.get('show-sidebar', 'True') != 'False'
-        self.sidebar_buttons = {}  # view_name -> Gtk.Button, set in build_sidebar
-        self.sidebar_widget = None  # the sidebar Gtk.Box, set in build_sidebar
 
         self.button_category = Gtk.Button(label=self.current_category)
         self.button_category.set_size_request(110, -1)
@@ -548,96 +572,6 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
         self.button_sort = Gtk.Button(label=self.current_sort)
         self.button_sort.set_size_request(110, -1)
-
-        # Build the left-hand sidebar (Library / Recents / Favorites)
-        self.sidebar = self.build_sidebar()
-
-    # ------------------------------------------------------------------
-    # Sidebar view methods (Library / Recents / Favorites)
-    # ------------------------------------------------------------------
-
-    def set_view(self, view):
-        """Switch the main flowbox to a different view (library/recents/favorites)."""
-        view = normalize_view(view)
-        if view == self.current_view:
-            # Still refresh button states (idempotent)
-            self._update_sidebar_button_states()
-            return
-        self.current_view = view
-        try:
-            cfg = ConfigManager()
-            cfg.set_value("current-view", view)
-        except Exception:
-            pass
-        self._update_sidebar_button_states()
-        if hasattr(self, 'flowbox'):
-            self.flowbox.invalidate_filter()
-
-    def _update_sidebar_button_states(self):
-        """Apply the 'active' style class to the active view's button."""
-        for name, btn in self.sidebar_buttons.items():
-            ctx = btn.get_style_context()
-            if name == self.current_view:
-                ctx.add_class("sidebar-active")
-            else:
-                ctx.remove_class("sidebar-active")
-
-    def toggle_sidebar_visibility(self):
-        """Show or hide the sidebar widget and persist the new state."""
-        self.show_sidebar = not self.show_sidebar
-        if self.sidebar_widget is not None:
-            self.sidebar_widget.set_visible(self.show_sidebar)
-        try:
-            cfg = ConfigManager()
-            cfg.set_value("show-sidebar", str(self.show_sidebar))
-        except Exception:
-            pass
-
-    def build_sidebar(self):
-        """Build the left-hand sidebar with three view-toggle buttons.
-
-        Returns the sidebar ``Gtk.Box`` ready to be packed into a parent
-        container. Stores the three buttons in ``self.sidebar_buttons`` and
-        the box itself in ``self.sidebar_widget`` so the visibility toggle
-        can find them later.
-        """
-        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        sidebar.set_margin_top(10)
-        sidebar.set_margin_bottom(10)
-        sidebar.set_margin_start(8)
-        sidebar.set_margin_end(8)
-        sidebar.set_size_request(140, -1)
-        sidebar.get_style_context().add_class("sidebar")
-
-        items = [
-            (VIEW_LIBRARY,    _("Library"),   "library"),
-            (VIEW_RECENTS,    _("Recents"),   "recents"),
-            (VIEW_FAVORITES,  _("Favorites"), "favorites"),
-        ]
-        for view_name, label, icon_name in items:
-            btn = Gtk.Button()
-            btn.set_relief(Gtk.ReliefStyle.NONE)
-            hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-            hbox.set_margin_top(6)
-            hbox.set_margin_bottom(6)
-            hbox.set_margin_start(6)
-            hbox.set_margin_end(6)
-            icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.BUTTON)
-            text = Gtk.Label(label=label)
-            text.set_halign(Gtk.Align.START)
-            text.set_hexpand(True)
-            hbox.pack_start(icon, False, False, 0)
-            hbox.pack_start(text, True, True, 0)
-            btn.add(hbox)
-            btn.connect("clicked", lambda _w, v=view_name: self.set_view(v))
-            sidebar.pack_start(btn, False, False, 0)
-            self.sidebar_buttons[view_name] = btn
-
-        self.sidebar_widget = sidebar
-        # Apply initial active state and visibility
-        self._update_sidebar_button_states()
-        sidebar.set_visible(self.show_sidebar)
-        return sidebar
 
         def update_sort_data():
             self.playtime_data.clear()
@@ -743,6 +677,24 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         scroll_box.set_margin_bottom(10)
         scroll_box.set_margin_start(10)
         scroll_box.set_margin_end(10)
+        # Propagate the flowbox's natural width so halign(START) on the
+        # flowbox actually places it at the left edge of the viewport.
+        # Without this, ScrolledWindow forces the child to fill the viewport
+        # horizontally and any halign on the child is ignored — which made
+        # the cards look "centered" with a growing gap on the left.
+        scroll_box.set_propagate_natural_width(True)
+
+        # Build the empty-state placeholder that takes over the viewport
+        # when a view (Recents / Favorites / Library) has no matching
+        # games. The actual widget is a child of a Gtk.Stack so we can
+        # flip between "content" (scroll_box) and "empty" without
+        # re-flowing the rest of the layout.
+        self.empty_state_box, self.empty_state_icon, self.empty_state_title, self.empty_state_subtitle = self._build_empty_state()
+        self.view_stack = Gtk.Stack()
+        self.view_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self.view_stack.set_transition_duration(120)
+        self.view_stack.add_named(scroll_box, "content")
+        self.view_stack.add_named(self.empty_state_box, "empty")
 
         self.flowbox = Gtk.FlowBox()
         self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
@@ -896,13 +848,27 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         self.flowbox.connect('add', on_child_added)
 
         if is_big:
-            self.flowbox.set_halign(Gtk.Align.CENTER)
-            self.flowbox.set_valign(Gtk.Align.CENTER)
+            # Fill the available width so the game area always occupies
+            # the full viewport. FILL is safe here because the sidebar is
+            # packed to the left of main_hbox with expand=False — the
+            # flowbox starts immediately after the sidebar in the adjacent
+            # right_vbox, so there is no left gap.
+            #
+            # The minimum width request is a safety net: with
+            # propagate_natural_width enabled, an empty/near-empty flowbox
+            # would otherwise collapse to width 0 and the whole scrolled
+            # window would render as a thin strip. A reasonable minimum
+            # keeps the layout sane in any view.
+            self.flowbox.set_halign(Gtk.Align.FILL)
+            self.flowbox.set_valign(Gtk.Align.START)
+            self.flowbox.set_hexpand(True)
+            self.flowbox.set_size_request(640, -1)
             self.flowbox.set_min_children_per_line(2)
             self.flowbox.set_max_children_per_line(20)
         else:
             self.flowbox.set_halign(Gtk.Align.FILL)
             self.flowbox.set_valign(Gtk.Align.START)
+            self.flowbox.set_hexpand(True)
 
         def sort_games(child1, child2, user_data):
             g1 = getattr(child1, 'game', None) or getattr(child1.get_child(), 'game', None)
@@ -916,10 +882,23 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
                         return (pt1 < pt2) - (pt1 > pt2)
 
                 elif self.current_sort_id == "lastplayed":
-                    idx1 = self.latest_games_order.get(g1.gameid, float('inf'))
-                    idx2 = self.latest_games_order.get(g2.gameid, float('inf'))
-                    if idx1 != idx2:
-                        return (idx1 > idx2) - (idx1 < idx2)
+                    # Prefer the recents.json timestamp (more accurate than
+                    # the index in latest-games.txt). Fall back to the old
+                    # index for any gameid that exists only there.
+                    rec1 = self.recent_games.get(g1.gameid) if hasattr(self, 'recent_games') else None
+                    rec2 = self.recent_games.get(g2.gameid) if hasattr(self, 'recent_games') else None
+                    if rec1 is not None and rec2 is not None:
+                        if rec1 != rec2:
+                            return (rec1 > rec2) - (rec1 < rec2)
+                    elif rec1 is not None:
+                        return -1
+                    elif rec2 is not None:
+                        return 1
+                    else:
+                        idx1 = self.latest_games_order.get(g1.gameid, float('inf'))
+                        idx2 = self.latest_games_order.get(g2.gameid, float('inf'))
+                        if idx1 != idx2:
+                            return (idx1 > idx2) - (idx1 < idx2)
 
                 elif self.current_sort_id == "custom":
                     idx1 = self.custom_order_data.get(g1.gameid, 999999)
@@ -957,7 +936,10 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
             # Sidebar view filter (Library / Recents / Favorites)
             current_view = getattr(self, 'current_view', VIEW_LIBRARY)
-            recent_ids = set(self.latest_games_order.keys()) if hasattr(self, 'latest_games_order') else set()
+            # `self.recent_games` is {gameid: timestamp}; the filter only
+            # needs the keys to decide membership. The timestamps are used
+            # by the card overlay for the "X ago" label.
+            recent_ids = set(self.recent_games.keys()) if hasattr(self, 'recent_games') else set()
             matches_view = view_filter_matches(
                 game={"gameid": game.gameid, "title": game.title, "favorite": getattr(game, 'favorite', False)},
                 view=current_view,
@@ -971,14 +953,24 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         scroll_box.add(self.flowbox)
 
         if is_big:
-            self.main_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-            self.box_main.pack_start(self.main_hbox, True, True, 0)
+            # Use a Gtk.Grid so the sidebar is explicitly pinned to
+            # column 0 with no expand.  The content area (right_vbox)
+            # sits in column 1 and gets all remaining horizontal space.
+            self.main_grid = Gtk.Grid()
+            self.main_grid.set_column_homogeneous(False)
+            self.box_main.pack_start(self.main_grid, True, True, 0)
 
-            # Sidebar (Library / Recents / Favorites) on the left
-            self.main_hbox.pack_start(self.sidebar, False, False, 0)
+            # Sidebar (Library / Recents / Favorites) — column 0, never
+            # moves from the left edge regardless of the content area's
+            # size or whether the view is in empty state.
+            self.sidebar.set_hexpand(False)
+            self.sidebar.set_halign(Gtk.Align.START)
+            self.main_grid.attach(self.sidebar, 0, 0, 1, 1)
 
             right_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-            self.main_hbox.pack_start(right_vbox, True, True, 0)
+            right_vbox.set_hexpand(True)
+            right_vbox.set_halign(Gtk.Align.FILL)
+            self.main_grid.attach(right_vbox, 1, 0, 1, 1)
 
             if self.interface_mode != "Banners":
                 self.zoom_slider.set_no_show_all(True)
@@ -989,9 +981,8 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             bottom_bar.set_margin_start(10)
             bottom_bar.set_margin_end(10)
 
-            bottom_bar.pack_start(self.zoom_slider, False, False, 0)
-
-            # Sidebar visibility toggle
+            # Sidebar toggle — always visible at bottom-left, independent of
+            # sidebar visibility so the user can always show the sidebar again.
             self.button_sidebar_toggle = Gtk.Button()
             self.button_sidebar_toggle.set_relief(Gtk.ReliefStyle.NONE)
             self.button_sidebar_toggle.set_tooltip_text(_("Toggle sidebar"))
@@ -999,6 +990,8 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             self.button_sidebar_toggle.add(toggle_icon)
             self.button_sidebar_toggle.connect("clicked", lambda _w: self.toggle_sidebar_visibility())
             bottom_bar.pack_start(self.button_sidebar_toggle, False, False, 0)
+
+            bottom_bar.pack_start(self.zoom_slider, False, False, 0)
 
             if getattr(self, 'show_categories', True):
                 box_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -1017,7 +1010,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
             bottom_bar.set_center_widget(center_grid)
 
-            right_vbox.pack_start(scroll_box, True, True, 0)
+            right_vbox.pack_start(self.view_stack, True, True, 0)
             right_vbox.pack_start(bottom_bar, False, False, 0)
 
         else:
@@ -1042,7 +1035,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
                 top_bar.pack_start(self.button_category, True, True, 0)
                 self.box_top.pack_start(top_bar, False, False, 0)
 
-            self.box_top.pack_start(scroll_box, True, True, 0)
+            self.box_top.pack_start(self.view_stack, True, True, 0)
 
             grid_controls = Gtk.Grid()
             grid_controls.set_column_spacing(10)
@@ -1071,12 +1064,298 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             self.box_main.pack_end(self.box_bottom, False, True, 0)
 
         update_sort_data()
+        # Load recents.json (gameid -> last-launch timestamp). The Recents
+        # view uses this to decide which games to show and to render the
+        # "X ago" label. A missing file means recents is empty.
+        try:
+            self.recent_games = load_recents(recents_json)
+        except Exception:
+            self.recent_games = {}
+
         self.load_games()
+        self._update_age_labels()
 
         self.add(self.box_main)
         self.select_first_child()
         self.connect("key-press-event", self.on_key_press_event)
         self.show_all()
+
+    # ------------------------------------------------------------------
+    # Sidebar view methods (Library / Recents / Favorites)
+    # ------------------------------------------------------------------
+
+    def set_view(self, view):
+        """Switch the main flowbox to a different view (library/recents/favorites)."""
+        view = normalize_view(view)
+        if view == self.current_view:
+            # Still refresh button states (idempotent)
+            self._update_sidebar_button_states()
+            return
+        self.current_view = view
+        try:
+            cfg = ConfigManager()
+            cfg.set_value("current-view", view)
+            cfg.save_config()
+        except Exception:
+            pass
+        self._update_sidebar_button_states()
+        if hasattr(self, 'flowbox'):
+            self.flowbox.invalidate_filter()
+        self._update_age_labels()
+        GLib.idle_add(self._update_empty_state)
+
+    def _update_sidebar_button_states(self):
+        """Apply the 'active' style class to the active view's button."""
+        for name, btn in self.sidebar_buttons.items():
+            ctx = btn.get_style_context()
+            if name == self.current_view:
+                ctx.add_class("sidebar-active")
+            else:
+                ctx.remove_class("sidebar-active")
+
+    def _update_age_labels(self):
+        """Show or hide the per-card "X ago" labels.
+
+        In Recents view, every visible card gets a label like ``"5 min ago"``
+        or ``"yesterday"``. In any other view the labels are hidden (we
+        still keep the widget around to avoid reflowing the layout on
+        view switches).
+        """
+        show = self.current_view == VIEW_RECENTS
+        recents = getattr(self, 'recent_games', {}) or {}
+        try:
+            self.flowbox.foreach(self._refresh_one_card_age, show, recents)
+        except Exception:
+            pass
+
+    def _refresh_one_card_age(self, child, show, recents):
+        label = getattr(child, 'age_label', None)
+        game = getattr(child, 'game', None)
+        if label is None or game is None:
+            return
+        if not show:
+            label.hide()
+            return
+        ts = recents.get(game.gameid)
+        text = format_recent_age(ts)
+        if text is None:
+            label.hide()
+        else:
+            label.set_text(text)
+            label.show()
+
+    def _build_empty_state(self):
+        """Create the placeholder shown when a view has no games.
+
+        Returns a tuple of ``(box, icon, title, subtitle)`` so callers can
+        update the text/icon later without rebuilding the widget. The box
+        fills the full allocated width so the sidebar always feels anchored
+        to the left edge — its children (icon, title, subtitle) each have
+        ``halign=CENTER`` so the text remains visually centered.
+        """
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        box.set_halign(Gtk.Align.FILL)
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_margin_top(60)
+        box.set_margin_bottom(60)
+        box.set_margin_start(20)
+        box.set_margin_end(20)
+        box.get_style_context().add_class("empty-state")
+
+        icon = Gtk.Image()
+        icon.set_pixel_size(64)
+        icon.set_halign(Gtk.Align.CENTER)
+        icon.get_style_context().add_class("empty-state-icon")
+        box.pack_start(icon, False, False, 0)
+
+        title = Gtk.Label()
+        title.set_halign(Gtk.Align.CENTER)
+        title.set_line_wrap(True)
+        title.set_max_width_chars(40)
+        title.get_style_context().add_class("empty-state-title")
+        box.pack_start(title, False, False, 0)
+
+        subtitle = Gtk.Label()
+        subtitle.set_halign(Gtk.Align.CENTER)
+        subtitle.set_line_wrap(True)
+        subtitle.set_max_width_chars(50)
+        subtitle.get_style_context().add_class("empty-state-subtitle")
+        box.pack_start(subtitle, False, False, 0)
+
+        return box, icon, title, subtitle
+
+    def _update_empty_state(self):
+        """Switch the view stack between content and the empty placeholder.
+
+        Called whenever the visible game list may have changed: on view
+        switches, after game load/toggle, and on filter changes. We check
+        the flowbox's preferred height — when zero, no children are
+        currently visible, so the placeholder takes over.
+        """
+        if not hasattr(self, 'view_stack') or self.view_stack is None:
+            return
+        if not hasattr(self, 'flowbox') or self.flowbox is None:
+            return
+        try:
+            nat_h = self.flowbox.get_preferred_height()[0]
+        except Exception:
+            nat_h = 0
+        # Fallback: walk the children and count any that pass the current
+        # filter. ``get_preferred_height`` should already reflect this but
+        # we belt-and-braces it because GTK's FlowBox sometimes reports a
+        # stale height before the filter is re-evaluated.
+        if nat_h <= 1:
+            visible = 0
+            for child in self.flowbox.get_children():
+                inner = child.get_child()
+                if inner is not None and getattr(inner, 'game', None) is not None \
+                        and child.get_child_visible():
+                    visible += 1
+            has_content = visible > 0
+        else:
+            has_content = True
+
+        if has_content:
+            self.view_stack.set_visible_child_name("content")
+            return
+
+        # No visible games — show the placeholder with the right text.
+        if self.current_view == VIEW_RECENTS:
+            self.empty_state_icon.set_from_icon_name(
+                "document-open-recent-symbolic", Gtk.IconSize.DIALOG)
+            self.empty_state_title.set_text(_("No recently played games"))
+            self.empty_state_subtitle.set_text(
+                _("Launch a game and it will show up here next time."))
+        elif self.current_view == VIEW_FAVORITES:
+            self.empty_state_icon.set_from_icon_name(
+                "non-starred-symbolic", Gtk.IconSize.DIALOG)
+            self.empty_state_title.set_text(_("No favorites yet"))
+            self.empty_state_subtitle.set_text(
+                _("Right-click a game and choose \u201cAdd to favorites\u201d, "
+                  "or tap the star on its card."))
+        else:
+            self.empty_state_icon.set_from_icon_name(
+                "view-list-symbolic", Gtk.IconSize.DIALOG)
+            self.empty_state_title.set_text(_("Your library is empty"))
+            self.empty_state_subtitle.set_text(
+                _("Click the + button below to add your first game."))
+        self.view_stack.set_visible_child_name("empty")
+
+    def toggle_sidebar_visibility(self):
+        """Show or hide the sidebar widget and persist the new state."""
+        self.show_sidebar = not self.show_sidebar
+        if self.sidebar_widget is not None:
+            self.sidebar_widget.set_visible(self.show_sidebar)
+        try:
+            cfg = ConfigManager()
+            cfg.set_value("show-sidebar", str(self.show_sidebar))
+            cfg.save_config()
+        except Exception:
+            pass
+
+    def _on_recents_button_press(self, button, event):
+        """Show a small popover on right-click of the Recents button."""
+        # Only respond to right-click (button 3). Left-click is handled by
+        # the connected "clicked" signal — we must not consume it here.
+        if event.type != Gdk.EventType.BUTTON_PRESS or event.button != 3:
+            return False
+        popover = Gtk.Popover.new(button)
+        menu_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        menu_box.set_margin_top(6)
+        menu_box.set_margin_bottom(6)
+        menu_box.set_margin_start(6)
+        menu_box.set_margin_end(6)
+        clear_item = Gtk.Button(label=_("Clear recents"))
+        clear_item.set_relief(Gtk.ReliefStyle.NONE)
+        clear_item.connect("clicked", self._on_clear_recents_clicked, popover)
+        menu_box.add(clear_item)
+        popover.add(menu_box)
+        popover.show_all()
+        # ``show_all`` recursively shows children of the popover, which
+        # would force-show the recents card overlays too. Re-hide them
+        # right after so the popover only contains the menu.
+        self._update_age_labels()
+        return True
+
+    def _on_clear_recents_clicked(self, button, popover):
+        """Wipe recents.json, refresh in-memory state, close the popover."""
+        clear_recents(recents_json)
+        self.recent_games = {}
+        if hasattr(self, 'flowbox'):
+            self.flowbox.invalidate_filter()
+        self._update_age_labels()
+        GLib.idle_add(self._update_empty_state)
+        popover.popdown()
+
+    def build_sidebar(self):
+        """Build the left-hand sidebar with three view-toggle buttons.
+
+        Returns the sidebar ``Gtk.Box`` ready to be packed into a parent
+        container. Stores the three buttons in ``self.sidebar_buttons`` and
+        the box itself in ``self.sidebar_widget`` so the visibility toggle
+        can find them later.
+        """
+        sidebar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        sidebar.set_margin_top(10)
+        sidebar.set_margin_bottom(10)
+        sidebar.set_margin_start(0)
+        sidebar.set_margin_end(6)
+        sidebar.set_size_request(140, -1)
+        sidebar.get_style_context().add_class("sidebar")
+
+        is_big_mode = getattr(self, 'interface_mode', None) in ("Blocks", "Banners")
+
+        # --- Header: Faugus brand (big mode only) ---
+        if is_big_mode:
+            header_hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+            header_hbox.set_margin_top(4)
+            header_hbox.set_margin_bottom(8)
+            header_hbox.set_margin_start(6)
+            header_hbox.set_margin_end(6)
+
+            faugus_icon = Gtk.Image.new_from_icon_name("faugus-launcher", Gtk.IconSize.BUTTON)
+            header_hbox.pack_start(faugus_icon, False, False, 0)
+
+            faugus_label = Gtk.Label(label="Faugus")
+            faugus_label.set_halign(Gtk.Align.START)
+            faugus_label.set_hexpand(True)
+            header_hbox.pack_start(faugus_label, True, True, 0)
+
+            sidebar.pack_start(header_hbox, False, False, 0)
+
+        # --- View buttons ---
+        items = [
+            (VIEW_LIBRARY,    _("Library"),   "view-list-symbolic"),
+            (VIEW_RECENTS,    _("Recents"),   "document-open-recent-symbolic"),
+            (VIEW_FAVORITES,  _("Favorites"), "starred-symbolic"),
+        ]
+        for view_name, label, icon_name in items:
+            btn = Gtk.Button()
+            btn.set_relief(Gtk.ReliefStyle.NONE)
+            hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            hbox.set_margin_top(6)
+            hbox.set_margin_bottom(6)
+            hbox.set_margin_start(6)
+            hbox.set_margin_end(6)
+            icon = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.BUTTON)
+            text = Gtk.Label(label=label)
+            text.set_halign(Gtk.Align.START)
+            text.set_hexpand(True)
+            hbox.pack_start(icon, False, False, 0)
+            hbox.pack_start(text, True, True, 0)
+            btn.add(hbox)
+            btn.connect("clicked", lambda _w, v=view_name: self.set_view(v))
+            # Right-click on Recents gets a "Clear recents" pop-up.
+            if view_name == VIEW_RECENTS:
+                btn.connect("button-press-event", self._on_recents_button_press)
+            sidebar.pack_start(btn, False, False, 0)
+            self.sidebar_buttons[view_name] = btn
+
+        self.sidebar_widget = sidebar
+        # Apply initial active state and visibility
+        self._update_sidebar_button_states()
+        sidebar.set_visible(self.show_sidebar)
+        return sidebar
 
     def on_category_button_clicked(self, button):
         popover = Gtk.Popover.new(button)
@@ -2122,6 +2401,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         self.flowbox.foreach(Gtk.Widget.destroy)
         for game in self.games:
             self.add_item_list(game)
+        self._update_empty_state()
 
     def add_item_list(self, game):
         zoom_pct = self.banner_size
@@ -2267,7 +2547,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             Gtk.IconSize.SMALL_TOOLBAR,
         )
         favorite_btn.add(star_image)
-        favorite_btn.connect("clicked", self._on_favorite_button_clicked, game)
+        favorite_btn.connect("clicked", self._on_favorite_button_clicked, game, star_image)
         if getattr(game, 'favorite', False):
             favorite_btn.get_style_context().add_class("favorite-active")
         overlay.add_overlay(favorite_btn)
@@ -2278,23 +2558,45 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         self.flowbox_child.favorite_btn = favorite_btn
         self.flowbox_child.favorite_icon = star_image
 
+        # "X ago" label — bottom-right corner of the card, only visible
+        # when the user is looking at the Recents view. We always create
+        # the widget (so toggling views doesn't re-flow the layout) and
+        # just hide/show + refresh the text from update_age_labels().
+        age_label = Gtk.Label()
+        age_label.set_halign(Gtk.Align.END)
+        age_label.set_valign(Gtk.Align.END)
+        age_label.set_margin_bottom(4)
+        age_label.set_margin_end(6)
+        age_label.get_style_context().add_class("recent-age")
+        age_label.set_no_show_all(True)
+        overlay.add_overlay(age_label)
+        try:
+            overlay.set_overlay_pass_through(age_label, True)
+        except AttributeError:
+            pass
+        self.flowbox_child.age_label = age_label
+        self.flowbox_child.game = game
+
         self.flowbox_child.add(overlay)
 
         self.flowbox.add(self.flowbox_child)
 
-    def _on_favorite_button_clicked(self, button, game):
-        """Handle a click on the star button on a game card."""
+    def _on_favorite_button_clicked(self, button, game, icon):
+        """Handle a click on the star button on a game card.
+
+        ``button.get_image()`` returns ``None`` when the image was attached
+        with ``Gtk.Button.add`` (instead of ``set_image``), so we keep a
+        direct reference to the ``Gtk.Image`` widget and pass it through the
+        signal handler instead of reaching into the button's image slot.
+        """
         new_state = self.toggle_favorite(game.gameid)
         if new_state is True:
             button.get_style_context().add_class("favorite-active")
-            button.get_image().set_from_icon_name(
-                "starred", Gtk.IconSize.SMALL_TOOLBAR
-            )
+            icon.set_from_icon_name("starred", Gtk.IconSize.SMALL_TOOLBAR)
         else:
             button.get_style_context().remove_class("favorite-active")
-            button.get_image().set_from_icon_name(
-                "non-starred", Gtk.IconSize.SMALL_TOOLBAR
-            )
+            icon.set_from_icon_name("non-starred", Gtk.IconSize.SMALL_TOOLBAR)
+
 
     def update_game_visual(self, flowbox_child):
         game = flowbox_child.game
@@ -2497,6 +2799,9 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
         def update_latest_and_sort():
             self.update_latest_games_file(game.gameid)
+            # Refresh recents (gameid -> timestamp) so the Recents view
+            # updates immediately after launch.
+            self.recent_games = load_recents(recents_json)
             if hasattr(self, 'current_sort') and self.current_sort == self.opt_lastplayed:
                 self.latest_games_order.clear()
                 try:
@@ -2584,6 +2889,14 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         with open(latest_games, 'w') as f:
             f.write('\n'.join(games))
 
+        # Also update the recents.json timestamp map so the Recents view
+        # shows the correct "X ago" age. We touch here (not load) so the
+        # in-memory `self.recent_games` matches what's on disk.
+        try:
+            self.recent_games = touch_recent(recents_json, gameid)
+        except Exception:
+            pass
+
         self.load_tray_icon()
 
     def toggle_favorite(self, gameid):
@@ -2596,6 +2909,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
                 game.favorite = not game.favorite
                 set_favorite_in_json(games_json, gameid, game.favorite)
                 self.flowbox.invalidate_filter()
+                GLib.idle_add(self._update_empty_state)
                 return game.favorite
         return None
 
@@ -3168,7 +3482,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         grid_labels.attach(self.label_download2, 0, 2, 1, 1)
 
         if self.interface_mode != "List":
-            self.box_main.remove(self.main_hbox)
+            self.box_main.remove(self.main_grid)
         else:
             self.box_main.remove(self.box_top)
             self.box_main.remove(self.box_bottom)
@@ -3184,7 +3498,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             self.box_main.remove(self.box_launcher)
             self.box_launcher.destroy()
             if self.interface_mode != "List":
-                self.box_main.add(self.main_hbox)
+                self.box_main.add(self.main_grid)
             else:
                 self.box_main.pack_start(self.box_top, True, True, 0)
                 self.box_main.pack_end(self.box_bottom, False, True, 0)
