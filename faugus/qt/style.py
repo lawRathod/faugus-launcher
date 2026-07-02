@@ -51,15 +51,13 @@ def get_stylesheet():
 
         /* -- Toolbar buttons -------------------------- */
         QPushButton.flash-btn {
-            border-radius: 12px;
-            min-width: 42px;
-            min-height: 42px;
-            padding: 8px;
+            border-radius: 10px;
+            min-width: 36px;
+            min-height: 36px;
+            padding: 6px;
             background: rgba(138, 92, 246, 0.06);
             border: 1px solid rgba(138, 92, 246, 0.12);
             color: rgba(200, 184, 224, 0.7);
-            font-size: 20px;
-            font-weight: 300;
         }
         QPushButton.flash-btn:hover {
             background: rgba(138, 92, 246, 0.15);

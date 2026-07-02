@@ -6,7 +6,7 @@ import subprocess
 import sys
 from functools import partial
 
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import Qt, QTimer, QUrl, QSize
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -187,41 +187,46 @@ class MainWindow(QMainWindow):
 
     def _build_toolbar(self, is_big):
         """Build the top toolbar with buttons and search."""
-        toolbar = QWidget()
-        toolbar.setFixedHeight(68)
-        layout = QHBoxLayout(toolbar)
-        layout.setContentsMargins(16, 8, 16, 8)
+        from faugus.qt.icons import get_icon
 
-        def make_button(text, callback, tooltip=None, size=44):
-            btn = QPushButton(text)
+        toolbar = QWidget()
+        toolbar.setFixedHeight(56)
+        layout = QHBoxLayout(toolbar)
+        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setSpacing(6)
+
+        def make_button(icon_name, callback, tooltip=None, size=36):
+            btn = QPushButton()
             btn.setFixedSize(size, size)
+            btn.setIcon(get_icon(icon_name, size - 10))
+            btn.setIconSize(QSize(size - 12, size - 12))
             btn.setProperty("class", "flash-btn")
             if tooltip:
                 btn.setToolTip(tooltip)
             btn.clicked.connect(callback)
             return btn
 
-        self.btn_sidebar = make_button("\u2630", self._toggle_sidebar, "Toggle sidebar")
-        self.btn_add = make_button("\u271a", self._on_add_game, "Add game")
-        self.btn_settings = make_button("\u2699", self._on_settings, "Settings")
-        self.btn_kill = make_button("\u2715", self._on_kill_all, "Force close all running games")
-        self.btn_play = make_button("\u25b6", self._on_play, "Play selected game")
+        self.btn_sidebar = make_button("menu", self._toggle_sidebar, "Toggle sidebar")
+        self.btn_add = make_button("add", self._on_add_game, "Add game")
+        self.btn_settings = make_button("settings", self._on_settings, "Settings")
+        self.btn_kill = make_button("kill", self._on_kill_all, "Force close all running games")
+        self.btn_play = make_button("play", self._on_play, "Play selected game")
 
         layout.addWidget(self.btn_sidebar)
-        layout.addSpacing(4)
+        layout.addSpacing(2)
         layout.addWidget(self.btn_add)
         layout.addWidget(self.btn_settings)
         layout.addWidget(self.btn_kill)
-        layout.addSpacing(8)
+        layout.addSpacing(4)
         layout.addWidget(self.btn_play)
 
-        layout.addSpacing(12)
+        layout.addSpacing(8)
 
         # Search
         self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("\U0001f50d  Search games...")
-        self.search_entry.setFixedWidth(240)
-        self.search_entry.setFixedHeight(40)
+        self.search_entry.setPlaceholderText("Search games...")
+        self.search_entry.setFixedWidth(220)
+        self.search_entry.setFixedHeight(34)
         self.search_entry.textChanged.connect(self._on_search_changed)
         layout.addWidget(self.search_entry)
 
@@ -229,21 +234,25 @@ class MainWindow(QMainWindow):
 
         # Sort
         self.sort_map = {
-            "alpha": "\u2191  A-Z",
-            "playtime": "\u23f1  Playtime",
-            "lastplayed": "\U0001f552  Recent",
-            "custom": "\u2630  Custom",
+            "alpha": "A-Z",
+            "playtime": "Playtime",
+            "lastplayed": "Recent",
+            "custom": "Custom",
         }
-        self.btn_sort = QPushButton(self.sort_map.get(self.current_sort_id, "\u2191  A-Z"))
+        self.btn_sort = QPushButton(self.sort_map.get(self.current_sort_id, "A-Z"))
+        self.btn_sort.setIcon(get_icon("sort", 14))
+        self.btn_sort.setIconSize(QSize(14, 14))
         self.btn_sort.setProperty("class", "bottom-bar-button")
-        self.btn_sort.setFixedHeight(38)
+        self.btn_sort.setFixedHeight(32)
         self.btn_sort.clicked.connect(self._show_sort_menu)
         layout.addWidget(self.btn_sort)
 
         # Category
-        self.btn_category = QPushButton("\u2637  " + self._category_display_name(self.current_category))
+        self.btn_category = QPushButton(self._category_display_name(self.current_category))
+        self.btn_category.setIcon(get_icon("category", 14))
+        self.btn_category.setIconSize(QSize(14, 14))
         self.btn_category.setProperty("class", "bottom-bar-button")
-        self.btn_category.setFixedHeight(38)
+        self.btn_category.setFixedHeight(32)
         self.btn_category.clicked.connect(self._show_category_menu)
         layout.addWidget(self.btn_category)
 
@@ -255,7 +264,7 @@ class MainWindow(QMainWindow):
         self.zoom_slider.setTickPosition(QSlider.TicksBelow)
         self.zoom_slider.valueChanged.connect(self._on_zoom_changed)
         self.zoom_slider.setVisible(self.interface_mode == "Banners")
-        self.zoom_slider.setFixedWidth(130)
+        self.zoom_slider.setFixedWidth(120)
         layout.addWidget(self.zoom_slider)
 
         return toolbar
@@ -472,12 +481,13 @@ class MainWindow(QMainWindow):
 
     def _update_play_button(self):
         """Update play/stop button based on selected card's running state."""
+        from faugus.qt.icons import get_icon
         card = self._selected_card()
         if card and card.game.gameid in self.running:
-            self.btn_play.setText("■")
+            self.btn_play.setIcon(get_icon("stop", 16))
             self.btn_play.setToolTip("Stop selected game")
         else:
-            self.btn_play.setText("▶")
+            self.btn_play.setIcon(get_icon("play", 16))
             self.btn_play.setToolTip("Play selected game")
 
     # ------------------------------------------------------------------ #
