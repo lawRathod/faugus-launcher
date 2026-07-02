@@ -135,80 +135,206 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
         self.provider = Gtk.CssProvider()
         self.provider.load_from_data(b"""
+            /* -- Modern base ------------------------------ */
             .game {
-                background-color: alpha(@theme_base_color, 0.5);
+                background-color: alpha(@theme_base_color, 0.55);
                 color: @theme_text_color;
+                border-radius: 12px;
+                border: 1px solid alpha(@theme_text_color, 0.06);
+                transition: all 0.2s ease-out;
+            }
+            flowboxchild {
+                transition: all 0.2s ease-out;
+            }
+            flowboxchild:hover .game {
+                background-color: alpha(@theme_base_color, 0.8);
+                border-color: alpha(@theme_selected_bg_color, 0.3);
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
             }
             flowboxchild:selected {
                 background: transparent;
             }
             flowboxchild:selected .game {
-                background-color: alpha(@theme_selected_bg_color, 0.5);
+                background-color: alpha(@theme_selected_bg_color, 0.2);
+                border-color: @theme_selected_bg_color;
+                box-shadow: 0 0 0 1px @theme_selected_bg_color;
             }
             flowboxchild:selected:focus .game {
-                background-color: @theme_selected_bg_color;
-                color: @theme_bg_color;
+                background-color: alpha(@theme_selected_bg_color, 0.3);
+                color: @theme_text_color;
             }
+
+            /* -- Banner cards ---------------------------- */
             .banner-container {
-                border: 8px solid transparent;
+                border: 6px solid transparent;
+                border-radius: 14px;
                 padding: 0px;
             }
             flowboxchild.banner-container:selected {
-                border-color: alpha(@theme_selected_bg_color, 0.5);
+                border-color: alpha(@theme_selected_bg_color, 0.6);
             }
             flowboxchild.banner-container:selected:focus {
                 border-color: @theme_selected_bg_color;
-                box-shadow: 0 0 5px 0 @theme_selected_bg_color;
+                box-shadow: 0 0 12px 2px alpha(@theme_selected_bg_color, 0.4);
             }
+
+            /* -- Launch overlay --------------------------- */
             .launch-overlay {
-                background-color: @theme_text_color;
+                background-color: alpha(#000, 0.5);
                 opacity: 0;
-                transition: opacity 0.8s ease-out;
+                transition: opacity 0.4s ease-out;
+                border-radius: 12px;
             }
             .launch-overlay.playing {
-                opacity: 0.5;
+                opacity: 0.6;
                 transition: opacity 0.05s ease-in;
             }
+
+            /* -- Flash buttons ---------------------------- */
             button.flash-btn {
-                transition: background-color 0.3s ease-out, opacity 0.3s ease-out;
+                transition: all 0.2s ease-out;
+                border-radius: 8px;
+                min-width: 36px;
+                min-height: 36px;
+                padding: 6px;
+                background: alpha(@theme_base_color, 0.3);
+                border: 1px solid alpha(@theme_text_color, 0.08);
+            }
+            button.flash-btn:hover {
+                background: alpha(@theme_selected_bg_color, 0.15);
+                border-color: alpha(@theme_selected_bg_color, 0.3);
             }
             button.flash-btn.flashing {
-                background-color: alpha(@theme_text_color, 0.3);
-                opacity: 0.5;
+                background-color: alpha(@theme_text_color, 0.2);
+                opacity: 0.6;
                 transition: background-color 0.05s ease-in, opacity 0.05s ease-in;
             }
+
+            /* -- Category list ---------------------------- */
             .category-list {
-                background-color: alpha(@theme_base_color, 0.5);
+                background-color: alpha(@theme_base_color, 0.6);
+                border-radius: 8px;
             }
             .category-list row {
                 background-color: transparent;
                 color: @theme_text_color;
+                border-radius: 6px;
+                margin: 2px 4px;
             }
             .category-list row:selected {
-                background-color: alpha(@theme_selected_bg_color, 0.5);
+                background-color: alpha(@theme_selected_bg_color, 0.3);
             }
             .category-list row:selected:focus {
-                background-color: @theme_selected_bg_color;
-                color: @theme_bg_color;
+                background-color: alpha(@theme_selected_bg_color, 0.4);
+                color: @theme_text_color;
                 outline: none;
             }
+
+            /* -- Sidebar ---------------------------------- */
             .sidebar {
-                border-right: 1px solid alpha(@theme_text_color, 0.12);
-                background-color: alpha(@theme_base_color, 0.25);
+                border-right: 1px solid alpha(@theme_text_color, 0.08);
+                background-color: alpha(@theme_base_color, 0.15);
             }
+
+            /* -- Sidebar header "Faugus" ------------------ */
+            .sidebar-header label {
+                font-weight: 700;
+                font-size: 1.1em;
+                letter-spacing: 0.5px;
+            }
+            .sidebar-header image {
+                opacity: 0.7;
+            }
+
+            /* -- Sidebar buttons -------------------------- */
+            .sidebar button {
+                border-radius: 8px;
+                margin: 2px 6px;
+                padding: 8px 6px;
+                background: transparent;
+                border: none;
+                color: alpha(@theme_text_color, 0.7);
+                transition: all 0.15s ease-out;
+            }
+            .sidebar button:hover {
+                background: alpha(@theme_base_color, 0.4);
+                color: @theme_text_color;
+            }
+            .sidebar button.sidebar-active {
+                background: alpha(@theme_selected_bg_color, 0.2);
+                color: @theme_text_color;
+                font-weight: 600;
+            }
+
+            /* -- Empty state ------------------------------ */
             .empty-state {
                 color: @theme_text_color;
             }
             .empty-state-icon {
-                color: alpha(@theme_text_color, 0.45);
+                color: alpha(@theme_text_color, 0.35);
             }
             .empty-state-title {
-                font-size: 1.15em;
-                font-weight: bold;
+                font-size: 1.2em;
+                font-weight: 600;
                 color: @theme_text_color;
             }
             .empty-state-subtitle {
-                color: alpha(@theme_text_color, 0.65);
+                color: alpha(@theme_text_color, 0.55);
+            }
+
+            /* -- Search entry ----------------------------- */
+            entry {
+                border-radius: 8px;
+                padding: 6px 12px;
+                border: 1px solid alpha(@theme_text_color, 0.1);
+                background: alpha(@theme_base_color, 0.3);
+                transition: all 0.2s ease-out;
+            }
+            entry:focus {
+                border-color: @theme_selected_bg_color;
+                box-shadow: 0 0 0 2px alpha(@theme_selected_bg_color, 0.2);
+                background: alpha(@theme_base_color, 0.5);
+            }
+
+            /* -- Favorite star toggle --------------------- */
+            .favorite-toggle {
+                background: transparent;
+                border: none;
+                padding: 4px;
+                border-radius: 6px;
+                transition: all 0.15s ease-out;
+            }
+            .favorite-toggle:hover {
+                background: alpha(@theme_base_color, 0.3);
+            }
+
+            /* -- Bottom bar buttons (sort/category) ------- */
+            .bottom-bar-button {
+                border-radius: 8px;
+                padding: 6px 12px;
+                background: alpha(@theme_base_color, 0.3);
+                border: 1px solid alpha(@theme_text_color, 0.08);
+                transition: all 0.15s ease-out;
+            }
+            .bottom-bar-button:hover {
+                background: alpha(@theme_selected_bg_color, 0.12);
+                border-color: alpha(@theme_selected_bg_color, 0.25);
+            }
+
+            /* -- Recent age label ------------------------- */
+            .recent-age {
+                font-size: 0.85em;
+                color: alpha(@theme_text_color, 0.5);
+                background: alpha(#000, 0.35);
+                padding: 2px 8px;
+                border-radius: 6px;
+            }
+
+            /* -- Banner zoom slider ----------------------- */
+            scale slider {
+                border-radius: 50%;
+                min-width: 14px;
+                min-height: 14px;
             }
         """)
         Gtk.StyleContext.add_provider_for_screen(Gdk.Screen.get_default(), self.provider,
@@ -568,10 +694,12 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
 
         self.button_category = Gtk.Button(label=self.current_category)
         self.button_category.set_size_request(110, -1)
+        self.button_category.get_style_context().add_class("bottom-bar-button")
         self.button_category.connect("clicked", self.on_category_button_clicked)
 
         self.button_sort = Gtk.Button(label=self.current_sort)
         self.button_sort.set_size_request(110, -1)
+        self.button_sort.get_style_context().add_class("bottom-bar-button")
 
         def update_sort_data():
             self.playtime_data.clear()
@@ -975,6 +1103,27 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             if self.interface_mode != "Banners":
                 self.zoom_slider.set_no_show_all(True)
 
+            # --- Top bar: search + action buttons ---
+            top_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            top_bar.set_margin_top(10)
+            top_bar.set_margin_bottom(0)
+            top_bar.set_margin_start(10)
+            top_bar.set_margin_end(10)
+            top_bar.set_spacing(8)
+
+            self.entry_search.set_hexpand(True)
+            self.entry_search.set_placeholder_text(_("Search games..."))
+            top_bar.pack_start(self.entry_search, True, True, 0)
+
+            action_grid = Gtk.Grid()
+            action_grid.set_column_spacing(6)
+            action_grid.attach(self.button_add, 0, 0, 1, 1)
+            action_grid.attach(self.button_settings, 1, 0, 1, 1)
+            action_grid.attach(self.button_kill, 2, 0, 1, 1)
+            action_grid.attach(self.button_play, 3, 0, 1, 1)
+            top_bar.pack_end(action_grid, False, False, 0)
+
+            # --- Bottom bar: toggle, zoom, sort/category ---
             bottom_bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             bottom_bar.set_margin_top(5)
             bottom_bar.set_margin_bottom(10)
@@ -1000,16 +1149,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
                 box_actions.pack_start(self.button_category, False, False, 0)
                 bottom_bar.pack_end(box_actions, False, False, 0)
 
-            center_grid = Gtk.Grid()
-            center_grid.set_column_spacing(10)
-            center_grid.attach(self.button_add, 0, 0, 1, 1)
-            center_grid.attach(self.button_settings, 1, 0, 1, 1)
-            center_grid.attach(self.entry_search, 2, 0, 1, 1)
-            center_grid.attach(self.button_kill, 3, 0, 1, 1)
-            center_grid.attach(self.button_play, 4, 0, 1, 1)
-
-            bottom_bar.set_center_widget(center_grid)
-
+            right_vbox.pack_start(top_bar, False, False, 0)
             right_vbox.pack_start(self.view_stack, True, True, 0)
             right_vbox.pack_start(bottom_bar, False, False, 0)
 
@@ -1312,6 +1452,7 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
             header_hbox.set_margin_bottom(8)
             header_hbox.set_margin_start(6)
             header_hbox.set_margin_end(6)
+            header_hbox.get_style_context().add_class("sidebar-header")
 
             faugus_icon = Gtk.Image.new_from_icon_name("faugus-launcher", Gtk.IconSize.BUTTON)
             header_hbox.pack_start(faugus_icon, False, False, 0)
@@ -2490,6 +2631,9 @@ class Main(Gtk.ApplicationWindow, HiDpiMixin):
         if self.interface_mode == "Banners":
             self.flowbox_child.set_hexpand(True)
             self.flowbox_child.set_vexpand(True)
+
+            hbox.set_halign(Gtk.Align.CENTER)
+            hbox.set_hexpand(False)
 
             image2 = Gtk.Image()
             self.flowbox_child.banner = image2

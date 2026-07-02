@@ -18,6 +18,9 @@ from faugus.config_manager import *
 from faugus.utils import *
 from faugus.ea_fix import *
 from faugus.steam_setup import IS_STEAM_FLATPAK
+from faugus.core.utils import is_apple_silicon
+from faugus.core.launcher import build_launch_command as _build_launch_command
+from faugus.core.repository import GameRepository
 
 if IS_FLATPAK:
     GLib.set_prgname("io.github.Faugus.faugus-launcher")
@@ -869,32 +872,9 @@ def build_launch_command(game):
     return " ".join(command_parts)
 
 def load_game_from_json(gameid):
-    games = load_json_file(games_json, None)
-    if games is None:
-        return None
-
-    for game in games:
-        if game.get("gameid") == gameid:
-            return game
-
-    return None
-
-def is_apple_silicon():
-    path = "/proc/device-tree/compatible"
-
-    if not os.path.exists(path):
-        return False
-
-    try:
-        with open(path, "rb") as f:
-            dtcompat = f.read().decode('utf-8', errors='ignore')
-
-            if "apple,arm-platform" in dtcompat:
-                return True
-            else:
-                return False
-    except:
-        return False
+    repo = GameRepository(games_json)
+    game = repo.find_by_id(gameid)
+    return game.to_dict() if game else None
 
 def main():
     if is_apple_silicon() and 'FAUGUS_MUVM' not in os.environ:
