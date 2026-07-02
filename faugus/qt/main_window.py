@@ -188,57 +188,66 @@ class MainWindow(QMainWindow):
     def _build_toolbar(self, is_big):
         """Build the top toolbar with buttons and search."""
         toolbar = QWidget()
-        toolbar.setFixedHeight(60)
+        toolbar.setFixedHeight(68)
         layout = QHBoxLayout(toolbar)
-        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setContentsMargins(16, 8, 16, 8)
 
-        def make_button(text, callback, tooltip=None):
+        def make_button(text, callback, tooltip=None, size=44):
             btn = QPushButton(text)
-            btn.setFixedSize(50, 50)
+            btn.setFixedSize(size, size)
             btn.setProperty("class", "flash-btn")
             if tooltip:
                 btn.setToolTip(tooltip)
             btn.clicked.connect(callback)
             return btn
 
-        self.btn_add = make_button("+", self._on_add_game, "Add game")
-        self.btn_settings = make_button("⚙", self._on_settings, "Settings")
-        self.btn_kill = make_button("✕", self._on_kill_all, "Force close all running games")
-        self.btn_play = make_button("▶", self._on_play, "Play selected game")
+        self.btn_sidebar = make_button("\u2630", self._toggle_sidebar, "Toggle sidebar")
+        self.btn_add = make_button("\u271a", self._on_add_game, "Add game")
+        self.btn_settings = make_button("\u2699", self._on_settings, "Settings")
+        self.btn_kill = make_button("\u2715", self._on_kill_all, "Force close all running games")
+        self.btn_play = make_button("\u25b6", self._on_play, "Play selected game")
 
+        layout.addWidget(self.btn_sidebar)
+        layout.addSpacing(4)
         layout.addWidget(self.btn_add)
         layout.addWidget(self.btn_settings)
         layout.addWidget(self.btn_kill)
+        layout.addSpacing(8)
         layout.addWidget(self.btn_play)
+
+        layout.addSpacing(12)
 
         # Search
         self.search_entry = QLineEdit()
-        self.search_entry.setPlaceholderText("Search...")
-        self.search_entry.setFixedWidth(200)
+        self.search_entry.setPlaceholderText("\U0001f50d  Search games...")
+        self.search_entry.setFixedWidth(240)
+        self.search_entry.setFixedHeight(40)
         self.search_entry.textChanged.connect(self._on_search_changed)
         layout.addWidget(self.search_entry)
 
         layout.addStretch()
 
-        # Sort button
+        # Sort
         self.sort_map = {
-            "alpha": "Alphabetical",
-            "playtime": "Playtime",
-            "lastplayed": "Last played",
-            "custom": "Custom",
+            "alpha": "\u2191  A-Z",
+            "playtime": "\u23f1  Playtime",
+            "lastplayed": "\U0001f552  Recent",
+            "custom": "\u2630  Custom",
         }
-        self.btn_sort = QPushButton(self.sort_map.get(self.current_sort_id, "Alphabetical"))
+        self.btn_sort = QPushButton(self.sort_map.get(self.current_sort_id, "\u2191  A-Z"))
         self.btn_sort.setProperty("class", "bottom-bar-button")
+        self.btn_sort.setFixedHeight(38)
         self.btn_sort.clicked.connect(self._show_sort_menu)
         layout.addWidget(self.btn_sort)
 
-        # Category button
-        self.btn_category = QPushButton(self._category_display_name(self.current_category))
+        # Category
+        self.btn_category = QPushButton("\u2637  " + self._category_display_name(self.current_category))
         self.btn_category.setProperty("class", "bottom-bar-button")
+        self.btn_category.setFixedHeight(38)
         self.btn_category.clicked.connect(self._show_category_menu)
         layout.addWidget(self.btn_category)
 
-        # Zoom slider (Banners mode only)
+        # Zoom slider
         self.zoom_slider = QSlider(Qt.Horizontal)
         self.zoom_slider.setRange(50, 100)
         self.zoom_slider.setValue(self.banner_size)
@@ -246,7 +255,7 @@ class MainWindow(QMainWindow):
         self.zoom_slider.setTickPosition(QSlider.TicksBelow)
         self.zoom_slider.valueChanged.connect(self._on_zoom_changed)
         self.zoom_slider.setVisible(self.interface_mode == "Banners")
-        self.zoom_slider.setFixedWidth(150)
+        self.zoom_slider.setFixedWidth(130)
         layout.addWidget(self.zoom_slider)
 
         return toolbar
@@ -263,20 +272,27 @@ class MainWindow(QMainWindow):
         widget.setProperty("class", "empty-state")
         layout = QVBoxLayout(widget)
         layout.setAlignment(Qt.AlignCenter)
+        layout.setSpacing(12)
 
-        icon_label = QLabel("🎮")
+        icon_label = QLabel("\U0001f3ae")
         icon_label.setAlignment(Qt.AlignCenter)
-        icon_label.setStyleSheet("font-size: 48px; color: rgba(224,224,224,0.35);")
+        icon_label.setStyleSheet("font-size: 64px; background: transparent;")
         layout.addWidget(icon_label)
 
         self.empty_title = QLabel("Your library is empty")
         self.empty_title.setAlignment(Qt.AlignCenter)
-        self.empty_title.setProperty("class", "empty-state-title")
+        self.empty_title.setStyleSheet(
+            "font-size: 24px; font-weight: 600; color: rgba(232, 224, 240, 0.8);"
+            " background: transparent;"
+        )
         layout.addWidget(self.empty_title)
 
-        self.empty_subtitle = QLabel("Add a game to get started")
+        self.empty_subtitle = QLabel("Click + to add your first game")
         self.empty_subtitle.setAlignment(Qt.AlignCenter)
-        self.empty_subtitle.setProperty("class", "empty-state-subtitle")
+        self.empty_subtitle.setStyleSheet(
+            "font-size: 15px; color: rgba(200, 184, 224, 0.4);"
+            " background: transparent;"
+        )
         layout.addWidget(self.empty_subtitle)
 
         return widget
@@ -448,6 +464,22 @@ class MainWindow(QMainWindow):
         self.current_view = VIEW_LIBRARY
         self.sidebar.set_view(VIEW_LIBRARY)
 
+    def _toggle_sidebar(self):
+        self.show_sidebar = not self.show_sidebar
+        self.sidebar.setVisible(self.show_sidebar)
+        self.cfg.set("show-sidebar", self.show_sidebar)
+        self.cfg.save()
+
+    def _update_play_button(self):
+        """Update play/stop button based on selected card's running state."""
+        card = self._selected_card()
+        if card and card.game.gameid in self.running:
+            self.btn_play.setText("■")
+            self.btn_play.setToolTip("Stop selected game")
+        else:
+            self.btn_play.setText("▶")
+            self.btn_play.setToolTip("Play selected game")
+
     # ------------------------------------------------------------------ #
     # Search & filter                                                      #
     # ------------------------------------------------------------------ #
@@ -542,7 +574,10 @@ class MainWindow(QMainWindow):
     def _on_play(self):
         card = self._selected_card()
         if card:
-            self._launch_game(card.game)
+            if card.game.gameid in self.running:
+                self._stop_game(card.game)
+            else:
+                self._launch_game(card.game)
 
     def _on_card_double_clicked(self, game):
         if game.gameid in self.running:
@@ -578,6 +613,9 @@ class MainWindow(QMainWindow):
 
         # Refresh sort data
         self._load_sort_data()
+
+        # Update play button
+        self._update_play_button()
 
         # Close on launch
         if self.cfg.close_on_launch:
@@ -727,6 +765,27 @@ class MainWindow(QMainWindow):
             from faugus.core.utils import save_json_file
             save_json_file({}, _running_games)
             self._rebuild_grid()
+            self._update_play_button()
+
+    def _stop_game(self, game):
+        """Stop a running game."""
+        import signal
+        gameid = game.gameid
+        proc = self.processes.get(gameid)
+        if proc:
+            try:
+                proc.send_signal(signal.SIGUSR1)
+            except Exception:
+                pass
+        self.running.pop(gameid, None)
+        self.processes.pop(gameid, None)
+        from faugus.core.utils import save_json_file
+        save_json_file(self.running, _running_games)
+        for card in self.game_cards:
+            if card.game.gameid == gameid:
+                card.set_playing(False)
+                break
+        self._update_play_button()
 
     # ------------------------------------------------------------------ #
     # Check running                                                        #
@@ -744,6 +803,7 @@ class MainWindow(QMainWindow):
             from faugus.core.utils import save_json_file
             save_json_file(self.running, _running_games)
             self._rebuild_grid()
+            self._update_play_button()
 
     # ------------------------------------------------------------------ #
     # Add game / Settings                                                  #
