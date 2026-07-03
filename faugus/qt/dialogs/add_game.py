@@ -563,12 +563,15 @@ class AddGameView(QWidget):
     def _build_game_tab(self):
         w = QWidget()
         hbox = QHBoxLayout(w)
-        hbox.setSpacing(16)
+        hbox.setSpacing(24)
+        hbox.setContentsMargins(8, 8, 8, 8)
 
+        # Left: form fields
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setSpacing(12)
 
         self.txt_title = QLineEdit()
+        self.txt_title.setPlaceholderText("Enter game title...")
         self._title_timer = QTimer()
         self._title_timer.setSingleShot(True)
         self._title_timer.timeout.connect(self._on_title_changed)
@@ -593,29 +596,71 @@ class AddGameView(QWidget):
         prefix_row.addWidget(btn_browse_prefix)
         form.addRow("Wine prefix:", prefix_row)
 
-        self.txt_banner = QLineEdit()
-        self.txt_banner.textChanged.connect(self._on_banner_path_changed)
-        btn_banner = QPushButton("Browse...")
-        btn_banner.setFixedWidth(80)
-        btn_banner.clicked.connect(self._browse_banner)
-        banner_row = QHBoxLayout()
-        banner_row.addWidget(self.txt_banner, 1)
-        banner_row.addWidget(btn_banner)
-        form.addRow("Banner:", banner_row)
+        form.addRow("", QWidget())
+        hint = QLabel("Tip: after entering a title, the banner\nautomatically fetches from SteamGridDB")
+        hint.setStyleSheet("color: rgba(200, 184, 224, 0.4); font-size: 12px; padding-top: 4px;")
+        form.addRow(hint)
 
         hbox.addLayout(form, 1)
 
+        # Right: banner preview card
+        preview_container = QWidget()
+        preview_container.setFixedWidth(240)
+        preview_layout = QVBoxLayout(preview_container)
+        preview_layout.setContentsMargins(0, 0, 0, 0)
+        preview_layout.setSpacing(8)
+        preview_layout.setAlignment(Qt.AlignTop)
+
+        preview_label = QLabel("Banner Preview")
+        preview_label.setAlignment(Qt.AlignCenter)
+        preview_label.setStyleSheet(
+            "color: rgba(200, 184, 224, 0.5); font-size: 12px;"
+            " font-weight: 600; letter-spacing: 0.5px;"
+            " background: transparent; padding: 0;"
+        )
+        preview_layout.addWidget(preview_label)
+
         self.banner_label = QLabel()
-        self.banner_label.setFixedSize(172, 258)
+        self.banner_label.setFixedSize(200, 300)
         self.banner_label.setAlignment(Qt.AlignCenter)
         self.banner_label.setStyleSheet(
-            "background: rgba(138, 92, 246, 0.06);"
+            "background: rgba(138, 92, 246, 0.04);"
             " border: 1px solid rgba(138, 92, 246, 0.12);"
-            " border-radius: 8px;"
+            " border-radius: 12px; padding: 0;"
         )
         self.banner_label.setCursor(Qt.PointingHandCursor)
         self.banner_label.mousePressEvent = self._on_banner_clicked
-        hbox.addWidget(self.banner_label)
+        preview_layout.addWidget(self.banner_label, 0, Qt.AlignCenter)
+
+        click_hint = QLabel("Click to change")
+        click_hint.setAlignment(Qt.AlignCenter)
+        click_hint.setStyleSheet(
+            "color: rgba(138, 92, 246, 0.3); font-size: 11px;"
+            " background: transparent; padding: 0; margin: 0;"
+        )
+        preview_layout.addWidget(click_hint)
+
+        btn_banner = QPushButton("Browse for image...")
+        btn_banner.setFixedHeight(32)
+        btn_banner.setCursor(Qt.PointingHandCursor)
+        btn_banner.setStyleSheet(
+            "QPushButton { border-radius: 8px; padding: 4px 16px;"
+            " background: rgba(138, 92, 246, 0.08);"
+            " border: 1px solid rgba(138, 92, 246, 0.15);"
+            " color: rgba(200, 184, 224, 0.7); font-size: 12px; }"
+            "QPushButton:hover { background: rgba(138, 92, 246, 0.18);"
+            " border-color: rgba(138, 92, 246, 0.3); color: #ffffff; }"
+        )
+        btn_banner.clicked.connect(self._browse_banner)
+        preview_layout.addWidget(btn_banner)
+
+        # Hidden text field for programmatic banner path access
+        self.txt_banner = QLineEdit()
+        self.txt_banner.setVisible(False)
+        self.txt_banner.textChanged.connect(self._on_banner_path_changed)
+        preview_layout.addWidget(self.txt_banner)
+
+        hbox.addWidget(preview_container)
 
         return w
 
@@ -894,7 +939,7 @@ class AddGameView(QWidget):
         self._load_banner()
 
     def _load_banner(self):
-        logger.debug("AddGameView._load_banner: path=%s, exists=%s",
+        logger.debug("AddGameDialog._load_banner: path=%s, exists=%s",
                      self.banner_path_temp, os.path.isfile(self.banner_path_temp))
         if not os.path.isfile(self.banner_path_temp):
             self.banner_label.setText("No banner")
@@ -905,7 +950,7 @@ class AddGameView(QWidget):
             self.banner_label.setText("No banner")
             return
         pixmap = QPixmap.fromImage(img)
-        pixmap = pixmap.scaled(172, 258, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        pixmap = pixmap.scaled(200, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.banner_label.setPixmap(pixmap)
 
     def _set_banner_loading(self, loading=True):
