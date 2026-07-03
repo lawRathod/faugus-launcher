@@ -269,48 +269,56 @@ class GameCard(QWidget):
 
     # ---- Context menu ----
 
+    def _add_action(self, menu, text, callback, enabled=True):
+        act = menu.addAction(text)
+        act.setEnabled(enabled)
+        act.triggered.connect(callback)
+        return act
+
     def contextMenuEvent(self, event):
         logger.debug("GameCard.contextMenuEvent: game=%s", self.game.title)
         game = self.game
         menu = QMenu(self)
-        menu.addAction("\u25b6  Play").triggered.connect(
-            lambda: self.context_action.emit("play", game))
-        menu.addAction("\u270e  Edit").triggered.connect(
-            lambda: self.context_action.emit("edit", game))
-        menu.addAction("\u2717  Delete").triggered.connect(
-            lambda: self.context_action.emit("delete", game))
+
+        self._add_action(menu, "Play", lambda: self.context_action.emit("play", game))
+        self._add_action(menu, "Edit", lambda: self.context_action.emit("edit", game))
+        self._add_action(menu, "Delete", lambda: self.context_action.emit("delete", game))
+
         menu.addSeparator()
-        menu.addAction("\u2398  Duplicate").triggered.connect(
-            lambda: self.context_action.emit("duplicate", game))
-        hide_text = "\u2713  Unhide" if game.hidden else "\u2b50  Hide"
-        menu.addAction(hide_text).triggered.connect(
-            lambda: self.context_action.emit("hide", game))
-        fav_text = "\u2606  Remove favorite" if getattr(game, "favorite", False) else "\u2605  Add favorite"
-        menu.addAction(fav_text).triggered.connect(
-            lambda: self.context_action.emit("favorite", game))
+
+        hide_label = "Unhide" if game.hidden else "Hide"
+        self._add_action(menu, hide_label, lambda: self.context_action.emit("hide", game))
+        fav_label = "Remove favorite" if getattr(game, "favorite", False) else "Add favorite"
+        self._add_action(menu, fav_label, lambda: self.context_action.emit("favorite", game))
+
         menu.addSeparator()
-        cat_menu = menu.addMenu("\u2630  Category")
+
+        # Category submenu
+        cat_menu = menu.addMenu("Category")
         categories = self._load_categories()
         current_cats = self._current_categories()
         for cat in categories:
-            prefix = "\u2713  " if cat in current_cats else "     "
-            act = cat_menu.addAction(f"{prefix}{cat}")
+            act = cat_menu.addAction(cat)
+            act.setCheckable(True)
+            act.setChecked(cat in current_cats)
             act.triggered.connect(
                 lambda checked=False, c=cat: self.context_action.emit("category", (game, c)))
+
         menu.addSeparator()
+
         game_dir = os.path.dirname(game.path) if game.path else ""
-        act_loc = menu.addAction("\U0001f4c2  Open game folder")
-        act_loc.setEnabled(bool(game_dir))
-        act_loc.triggered.connect(lambda: self.context_action.emit("game_location", game))
-        act_pre = menu.addAction("\U0001f4c1  Open prefix folder")
-        act_pre.setEnabled(bool(game.prefix and os.path.isdir(game.prefix)))
-        act_pre.triggered.connect(lambda: self.context_action.emit("prefix_location", game))
-        menu.addAction("\u25b6  Run file").triggered.connect(
-            lambda: self.context_action.emit("run_file", game))
+        self._add_action(menu, "Open game folder",
+                         lambda: self.context_action.emit("game_location", game),
+                         enabled=bool(game_dir))
+        self._add_action(menu, "Open prefix folder",
+                         lambda: self.context_action.emit("prefix_location", game),
+                         enabled=bool(game.prefix and os.path.isdir(game.prefix)))
+
         proton_log = f"{_LOGS_DIR}/{game.gameid}/proton.log"
-        act_logs = menu.addAction("\U0001f4dc  Show logs")
-        act_logs.setEnabled(os.path.exists(proton_log))
-        act_logs.triggered.connect(lambda: self.context_action.emit("show_logs", game))
+        self._add_action(menu, "Show logs",
+                         lambda: self.context_action.emit("show_logs", game),
+                         enabled=os.path.exists(proton_log))
+
         menu.exec_(QCursor.pos())
 
     # ---- Events ----

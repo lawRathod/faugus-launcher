@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from functools import partial
@@ -799,6 +800,24 @@ class MainWindow(QMainWindow):
         logger.debug("MainWindow._on_add_game")
         self.add_game_view.is_edit = False
         self.add_game_view.edit_game = None
+        self.add_game_view.txt_title.clear()
+        self.add_game_view.txt_path.clear()
+        self.add_game_view.txt_prefix.clear()
+        self.add_game_view.txt_banner.clear()
+        self.add_game_view.txt_launch_args.clear()
+        self.add_game_view.txt_game_args.clear()
+        self.add_game_view.txt_env_vars.clear()
+        self.add_game_view.txt_protonfix.clear()
+        self.add_game_view.chk_mangohud.setChecked(False)
+        self.add_game_view.chk_gamemode.setChecked(False)
+        self.add_game_view.chk_disable_hidraw.setChecked(False)
+        self.add_game_view.chk_prevent_sleep.setChecked(False)
+        self.add_game_view.cmb_runner.setCurrentIndex(0)
+        try:
+            shutil.copyfile(_faugus_banner, self.add_game_view.banner_path_temp)
+        except Exception:
+            pass
+        self.add_game_view._load_banner()
         self.stack.setCurrentWidget(self.add_game_view)
 
     def _on_game_saved(self):
@@ -816,7 +835,6 @@ class MainWindow(QMainWindow):
         self.sidebar.setVisible(self.show_sidebar)
         is_big = self.interface_mode in ("Blocks", "Banners")
         self.sidebar.set_big_mode(is_big)
-        self._rebuild_grid()
 
     # ------------------------------------------------------------------ #
     # Window close                                                         #

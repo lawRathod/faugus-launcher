@@ -22,12 +22,15 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSpinBox,
     QTabWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from faugus.core.config import AppConfig
 from faugus.path_manager import PathManager
+
+_envar_dir = PathManager.user_config("faugus-launcher/envar.txt")
 
 
 class SettingsView(QWidget):
@@ -174,7 +177,32 @@ class SettingsView(QWidget):
         self.chk_donate.toggled.connect(self._save)
         form.addRow(self.chk_donate)
 
+        form.addRow(QLabel("Global environment variables:"))
+        self.txt_global_env = QTextEdit()
+        self.txt_global_env.setPlaceholderText("One KEY=VALUE per line\ne.g.\nDXVK_HUD=1\nGAMESCOPE_WAYLAND=1")
+        self.txt_global_env.setFixedHeight(100)
+        self.txt_global_env.textChanged.connect(self._save_global_env)
+        form.addRow(self.txt_global_env)
+
         return w
+
+    def _save_global_env(self):
+        text = self.txt_global_env.toPlainText()
+        try:
+            with open(_envar_dir, "w") as f:
+                for line in text.splitlines():
+                    line = line.strip()
+                    if line:
+                        f.write(line + "\n")
+        except Exception as e:
+            logger.debug("Failed to save global env vars: %s", e)
+
+    def _load_global_env(self):
+        try:
+            with open(_envar_dir, "r") as f:
+                self.txt_global_env.setPlainText(f.read().strip())
+        except Exception:
+            self.txt_global_env.setPlainText("")
 
     def _load_values(self):
         logger.debug("Loading settings values from config")
@@ -213,6 +241,7 @@ class SettingsView(QWidget):
         self.chk_disable_updates.setChecked(self.cfg.disable_updates)
         self.chk_splash.setChecked(self.cfg.splash_disable)
         self.chk_donate.setChecked(self.cfg.show_donate)
+        self._load_global_env()
 
     def _save(self):
         if self._loading:

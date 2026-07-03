@@ -28,13 +28,15 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSpinBox,
     QTabWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
 from faugus.core.config import AppConfig
 from faugus.core.models import Game
-from faugus.core.utils import build_runner_list
+from faugus.core.repository import GameRepository
+from faugus.core.utils import build_runner_list, format_title
 from faugus.path_manager import PathManager
 
 _faugus_banner = PathManager.system_data("faugus-launcher/faugus-banner.png")
@@ -114,6 +116,7 @@ class AddGameDialog(QDialog):
         self._title_timer = QTimer()
         self._title_timer.setSingleShot(True)
         self._title_timer.timeout.connect(self._on_title_changed)
+        self._title_timer.timeout.connect(self._update_prefix_from_title)
         self.txt_title.textChanged.connect(lambda: self._title_timer.start(600))
         form.addRow("Title:", self.txt_title)
 
@@ -233,9 +236,21 @@ class AddGameDialog(QDialog):
         if path:
             self.txt_banner.setText(path)
 
+    def _update_prefix_from_title(self):
+        title = self.txt_title.text()
+        logger.debug("AddGameDialog._update_prefix_from_title: title=%s, prefix=%s",
+                     title, self.txt_prefix.text())
+        if title:
+            slug = format_title(title)
+            base = os.path.expanduser(self.cfg.default_prefix) if self.cfg.default_prefix else ""
+            if base:
+                self.txt_prefix.setText(os.path.join(base, slug))
+            else:
+                self.txt_prefix.setText(os.path.join(os.path.expanduser("~"), "Faugus", slug))
+
     def _on_title_changed(self):
+        logger.debug("AddGameDialog._on_title_changed: title=%s", self.txt_title.text())
         title = self.txt_title.text().strip()
-        logger.debug("AddGameDialog._on_title_changed: title=%s", title)
         if title:
             self._fetch_banner(title)
 
@@ -463,7 +478,6 @@ class AddGameDialog(QDialog):
             game.disable_hidraw = self.chk_disable_hidraw.isChecked()
             game.prevent_sleep = self.chk_prevent_sleep.isChecked()
 
-            from faugus.core.repository import GameRepository
             repo = GameRepository(PathManager.user_config("faugus-launcher/games.json"))
             repo.update_game(game)
         else:
@@ -499,7 +513,6 @@ class AddGameDialog(QDialog):
                 favorite=False,
             )
 
-            from faugus.core.repository import GameRepository
             repo = GameRepository(PathManager.user_config("faugus-launcher/games.json"))
             repo.add_game(game)
 
@@ -539,25 +552,6 @@ class AddGameView(QWidget):
         self.tabs.addTab(self._build_options_tab(), "Options")
         layout.addWidget(self.tabs, 1)
 
-        # Bottom bar with Save/Back
-        bar = QWidget()
-        bar_layout = QHBoxLayout(bar)
-        bar_layout.setContentsMargins(16, 8, 16, 8)
-
-        btn_back = QPushButton("Back")
-        btn_back.setFixedWidth(100)
-        btn_back.clicked.connect(self.back_requested.emit)
-
-        btn_save = QPushButton("Save")
-        btn_save.setProperty("class", "primary-btn")
-        btn_save.setFixedWidth(100)
-        btn_save.clicked.connect(self._on_save)
-
-        bar_layout.addWidget(btn_back)
-        bar_layout.addStretch()
-        bar_layout.addWidget(btn_save)
-        layout.addWidget(bar)
-
         self.banner_ready.connect(self._load_banner)
 
     def _build_game_tab(self):
@@ -575,6 +569,7 @@ class AddGameView(QWidget):
         self._title_timer = QTimer()
         self._title_timer.setSingleShot(True)
         self._title_timer.timeout.connect(self._on_title_changed)
+        self._title_timer.timeout.connect(self._update_prefix_from_title)
         self.txt_title.textChanged.connect(lambda: self._title_timer.start(600))
         form.addRow("Title:", self.txt_title)
 
@@ -662,6 +657,13 @@ class AddGameView(QWidget):
 
         hbox.addWidget(preview_container)
 
+        # Save button (left side, close to inputs)
+        btn_save = QPushButton("Save")
+        btn_save.setProperty("class", "primary-btn")
+        btn_save.setFixedWidth(100)
+        btn_save.clicked.connect(self._on_save)
+        form.addRow(btn_save)
+
         return w
 
     def _build_runner_tab(self):
@@ -681,6 +683,11 @@ class AddGameView(QWidget):
 
         self.txt_game_args = QLineEdit()
         form.addRow("Game arguments:", self.txt_game_args)
+
+        self.txt_env_vars = QTextEdit()
+        self.txt_env_vars.setPlaceholderText("One KEY=VALUE per line\ne.g.\nDXVK_HUD=1\nPROTON_USE_WINED3D=0")
+        self.txt_env_vars.setFixedHeight(80)
+        form.addRow("Environment variables:", self.txt_env_vars)
 
         self.txt_protonfix = QLineEdit()
         self.txt_protonfix.setPlaceholderText("e.g. 12345")
@@ -733,7 +740,14 @@ class AddGameView(QWidget):
         if idx >= 0:
             self.cmb_runner.setCurrentIndex(idx)
 
-        self.txt_launch_args.setText(game.launch_arguments)
+        raw = game.launch_arguments or ""
+        if "\n\n" in raw:
+            parts = raw.split("\n\n", 1)
+            self.txt_env_vars.setPlainText(parts[0].strip())
+            self.txt_launch_args.setText(parts[1].strip())
+        else:
+            self.txt_env_vars.setPlainText("")
+            self.txt_launch_args.setText(raw)
         self.txt_game_args.setText(game.game_arguments)
         self.txt_protonfix.setText(game.protonfix)
         self.chk_mangohud.setChecked(bool(game.mangohud))
@@ -758,6 +772,14 @@ class AddGameView(QWidget):
         runner = self.cmb_runner.currentText()
         if runner == "Proton-CachyOS Latest (default)":
             runner = "Proton-CachyOS Latest"
+
+        launch_args = self.txt_launch_args.text().strip()
+        env_text = self.txt_env_vars.toPlainText().strip()
+        if env_text:
+            if launch_args:
+                launch_args = env_text + "\n" + launch_args
+            else:
+                launch_args = env_text
 
         title_formatted = title.replace(" ", "_").lower()
         banner_final = ""
@@ -784,7 +806,7 @@ class AddGameView(QWidget):
             game.prefix = self.txt_prefix.text().strip()
             game.banner = banner_final
             game.runner = runner
-            game.launch_arguments = self.txt_launch_args.text().strip()
+            game.launch_arguments = launch_args
             game.game_arguments = self.txt_game_args.text().strip()
             game.protonfix = self.txt_protonfix.text().strip()
             game.mangohud = self.chk_mangohud.isChecked()
@@ -798,7 +820,7 @@ class AddGameView(QWidget):
                 title=title,
                 path=path,
                 prefix=self.txt_prefix.text().strip(),
-                launch_arguments=self.txt_launch_args.text().strip(),
+                launch_arguments=launch_args,
                 game_arguments=self.txt_game_args.text().strip(),
                 mangohud=self.chk_mangohud.isChecked(),
                 gamemode=self.chk_gamemode.isChecked(),
@@ -859,6 +881,18 @@ class AddGameView(QWidget):
         if path:
             logger.debug("  selected: %s", path)
             self.txt_banner.setText(path)
+
+    def _update_prefix_from_title(self):
+        title = self.txt_title.text()
+        logger.debug("AddGameView._update_prefix_from_title: title=%s, prefix=%s",
+                     title, self.txt_prefix.text())
+        if title:
+            slug = format_title(title)
+            base = os.path.expanduser(self.cfg.default_prefix) if self.cfg.default_prefix else ""
+            if base:
+                self.txt_prefix.setText(os.path.join(base, slug))
+            else:
+                self.txt_prefix.setText(os.path.join(os.path.expanduser("~"), "Faugus", slug))
 
     def _on_title_changed(self):
         title = self.txt_title.text().strip()
