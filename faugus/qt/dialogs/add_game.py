@@ -54,6 +54,10 @@ class AddGameDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self._on_ok)
         buttons.rejected.connect(self.reject)
+        ok_btn = buttons.button(QDialogButtonBox.Ok)
+        ok_btn.setProperty("class", "primary-btn")
+        ok_btn.style().unpolish(ok_btn)
+        ok_btn.style().polish(ok_btn)
         layout.addWidget(buttons)
 
         if self.is_edit:

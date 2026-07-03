@@ -11,6 +11,7 @@ from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -19,7 +20,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSlider,
     QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
@@ -52,7 +52,6 @@ VERSION = "2.0.0"
 _games_json = PathManager.user_config("faugus-launcher/games.json")
 _recents_json = PathManager.user_config("faugus-launcher/recents.json")
 _latest_games = PathManager.user_config("faugus-launcher/latest-games.txt")
-_categories_file = PathManager.user_config("faugus-launcher/categories.txt")
 _custom_order = PathManager.user_config("faugus-launcher/custom-order.json")
 _running_games = PathManager.user_data("faugus-launcher/running_games.json")
 _logs_dir = PathManager.user_config("faugus-launcher/logs")
@@ -82,7 +81,8 @@ class MainWindow(QMainWindow):
         self.interface_mode = cfg.interface_mode
         self.banner_size = cfg.banner_size
         self.current_sort_id = cfg.sort
-        self.current_category = cfg.category
+        raw = cfg.category
+        self.current_category = "" if raw in ("all", "", None) else raw
         self.show_categories = cfg.show_categories
         self.show_labels = cfg.show_labels
         self.playtime_data = {}
@@ -156,6 +156,13 @@ class MainWindow(QMainWindow):
         toolbar = self._build_toolbar(is_big)
         right_layout.addWidget(toolbar)
 
+        # Divider
+        right_layout.addSpacing(6)
+        divider = QFrame()
+        divider.setFixedHeight(1)
+        divider.setStyleSheet("background: rgba(138, 92, 246, 0.08);")
+        right_layout.addWidget(divider)
+
         # Content area (game grid or empty state)
         self.stack = QStackedWidget()
 
@@ -166,7 +173,7 @@ class MainWindow(QMainWindow):
         scroll.setFrameShape(QScrollArea.NoFrame)
 
         self.flow_container = QWidget()
-        self.flow_layout = FlowLayout(self.flow_container, margin=10, h_spacing=10, v_spacing=10)
+        self.flow_layout = FlowLayout(self.flow_container, margin=16, h_spacing=16, v_spacing=16)
         scroll.setWidget(self.flow_container)
         self.stack.addWidget(scroll)
 
@@ -190,16 +197,16 @@ class MainWindow(QMainWindow):
         from faugus.qt.icons import get_icon
 
         toolbar = QWidget()
-        toolbar.setFixedHeight(56)
+        toolbar.setFixedHeight(80)
         layout = QHBoxLayout(toolbar)
-        layout.setContentsMargins(12, 6, 12, 6)
+        layout.setContentsMargins(12, 20, 12, 20)
         layout.setSpacing(6)
 
-        def make_button(icon_name, callback, tooltip=None, size=36):
+        def make_button(icon_name, callback, tooltip=None, size=34):
             btn = QPushButton()
             btn.setFixedSize(size, size)
-            btn.setIcon(get_icon(icon_name, size - 10))
-            btn.setIconSize(QSize(size - 12, size - 12))
+            btn.setIcon(get_icon(icon_name, size - 8))
+            btn.setIconSize(QSize(size - 10, size - 10))
             btn.setProperty("class", "flash-btn")
             if tooltip:
                 btn.setToolTip(tooltip)
@@ -220,17 +227,15 @@ class MainWindow(QMainWindow):
         layout.addSpacing(4)
         layout.addWidget(self.btn_play)
 
-        layout.addSpacing(8)
+        layout.addStretch()
 
         # Search
         self.search_entry = QLineEdit()
         self.search_entry.setPlaceholderText("Search games...")
         self.search_entry.setFixedWidth(220)
-        self.search_entry.setFixedHeight(34)
+        self.search_entry.setFixedHeight(48)
         self.search_entry.textChanged.connect(self._on_search_changed)
         layout.addWidget(self.search_entry)
-
-        layout.addStretch()
 
         # Sort
         self.sort_map = {
@@ -243,29 +248,11 @@ class MainWindow(QMainWindow):
         self.btn_sort.setIcon(get_icon("sort", 14))
         self.btn_sort.setIconSize(QSize(14, 14))
         self.btn_sort.setProperty("class", "bottom-bar-button")
-        self.btn_sort.setFixedHeight(32)
+        self.btn_sort.setFixedHeight(48)
         self.btn_sort.clicked.connect(self._show_sort_menu)
         layout.addWidget(self.btn_sort)
 
-        # Category
-        self.btn_category = QPushButton(self._category_display_name(self.current_category))
-        self.btn_category.setIcon(get_icon("category", 14))
-        self.btn_category.setIconSize(QSize(14, 14))
-        self.btn_category.setProperty("class", "bottom-bar-button")
-        self.btn_category.setFixedHeight(32)
-        self.btn_category.clicked.connect(self._show_category_menu)
-        layout.addWidget(self.btn_category)
 
-        # Zoom slider
-        self.zoom_slider = QSlider(Qt.Horizontal)
-        self.zoom_slider.setRange(50, 100)
-        self.zoom_slider.setValue(self.banner_size)
-        self.zoom_slider.setTickInterval(10)
-        self.zoom_slider.setTickPosition(QSlider.TicksBelow)
-        self.zoom_slider.valueChanged.connect(self._on_zoom_changed)
-        self.zoom_slider.setVisible(self.interface_mode == "Banners")
-        self.zoom_slider.setFixedWidth(120)
-        layout.addWidget(self.zoom_slider)
 
         return toolbar
 
@@ -282,6 +269,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(widget)
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(12)
+        layout.setContentsMargins(0, 40, 0, 40)
 
         icon_label = QLabel("\U0001f3ae")
         icon_label.setAlignment(Qt.AlignCenter)
@@ -392,7 +380,7 @@ class MainWindow(QMainWindow):
                 continue
 
             # Category filter
-            if self.show_categories and self.current_category and self.current_category != "All":
+            if self.show_categories and self.current_category:
                 raw_cat = game.category
                 if isinstance(raw_cat, str):
                     game_cats = [raw_cat]
@@ -516,66 +504,7 @@ class MainWindow(QMainWindow):
         self._load_sort_data()
         self._rebuild_grid()
 
-    def _show_category_menu(self):
-        menu = QMenu(self)
-        cats = self._load_categories()
-        all_action = menu.addAction("All")
-        all_action.triggered.connect(partial(self._set_category, "all"))
-        if cats:
-            menu.addSeparator()
-        for cat in cats:
-            action = menu.addAction(cat)
-            action.triggered.connect(partial(self._set_category, cat))
-        menu.exec_(self.btn_category.mapToGlobal(self.btn_category.rect().bottomLeft()))
 
-    def _set_category(self, cat_id):
-        if cat_id == "all":
-            self.current_category = "All"
-        else:
-            self.current_category = cat_id
-        self.btn_category.setText(self._category_display_name(self.current_category))
-        self.cfg.set("category", cat_id)
-        self.cfg.save()
-        self._rebuild_grid()
-
-    def _category_display_name(self, cat_id):
-        if cat_id in ("all", ""):
-            return "All"
-        if cat_id == "uncategorized":
-            return "Uncategorized"
-        return cat_id
-
-    def _load_categories(self):
-        if not os.path.exists(_categories_file):
-            return []
-        try:
-            with open(_categories_file, "r") as f:
-                return sorted([l.strip() for l in f if l.strip()], key=str.lower)
-        except Exception:
-            return []
-
-    # ------------------------------------------------------------------ #
-    # Zoom                                                                 #
-    # ------------------------------------------------------------------ #
-
-    def _on_zoom_changed(self, value):
-        snapped = round(value / 10.0) * 10.0
-        if value != snapped:
-            self.zoom_slider.setValue(int(snapped))
-            return
-        zoom_pct = int(snapped)
-        if self.banner_size == zoom_pct:
-            return
-        self.banner_size = zoom_pct
-        self.cfg.set("banner-size", zoom_pct)
-        self.cfg.save()
-        # Update all banner cards
-        for card in self.game_cards:
-            if card._mode == "Banners":
-                banner_path = card.game.banner
-                if not os.path.isfile(banner_path):
-                    banner_path = _faugus_banner
-                card.update_banner(banner_path, zoom_pct)
 
     # ------------------------------------------------------------------ #
     # Game actions                                                         #
@@ -836,7 +765,7 @@ class MainWindow(QMainWindow):
             self.show_labels = self.cfg.show_labels
             self.show_sidebar = self.cfg.show_sidebar
             self.sidebar.setVisible(self.show_sidebar)
-            self.zoom_slider.setVisible(self.interface_mode == "Banners")
+
             self._rebuild_grid()
 
     # ------------------------------------------------------------------ #

@@ -43,7 +43,7 @@ class Sidebar(QWidget):
             )
             header_layout.addWidget(brand)
 
-            subtitle = QLabel("Game Launcher")
+            subtitle = QLabel("umu frontend")
             subtitle.setStyleSheet(
                 "font-size: 12px; color: rgba(200, 184, 224, 0.4);"
                 " background: transparent;"

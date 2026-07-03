@@ -52,9 +52,9 @@ def get_stylesheet():
         /* -- Toolbar buttons -------------------------- */
         QPushButton.flash-btn {
             border-radius: 10px;
-            min-width: 36px;
-            min-height: 36px;
-            padding: 6px;
+            min-width: 34px;
+            min-height: 34px;
+            padding: 4px;
             background: rgba(138, 92, 246, 0.06);
             border: 1px solid rgba(138, 92, 246, 0.12);
             color: rgba(200, 184, 224, 0.7);
@@ -232,5 +232,16 @@ def get_stylesheet():
             background: rgba(138, 92, 246, 0.2);
             border-color: rgba(138, 92, 246, 0.35);
             color: #ffffff;
+        }
+        QDialogButtonBox QPushButton.primary-btn {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #7c3aed, stop:1 #a78bfa);
+            border-color: #8a5cf6;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        QDialogButtonBox QPushButton.primary-btn:hover {
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 #8b5cf6, stop:1 #b79cfb);
         }
     """
