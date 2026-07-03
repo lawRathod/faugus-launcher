@@ -1,5 +1,9 @@
 """SVG icons for the toolbar — minimal, crisp at any size."""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtCore import QSize
 from PySide6.QtSvg import QSvgRenderer
@@ -8,6 +12,7 @@ from PySide6.QtGui import QPainter, QColor
 
 def _render_svg(svg_data, size=20, color="#e0d8f0"):
     """Render an SVG string to a QPixmap at the given size and color."""
+    logger.debug("_render_svg: size=%s, color=%s, svg_len=%s", size, color, len(svg_data))
     # Replace hardcoded colors with the target color
     svg_data = svg_data.replace("FILLCOLOR", color)
     renderer = QSvgRenderer(bytearray(svg_data.encode()))
@@ -44,6 +49,7 @@ ICON_CATEGORY = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><pa
 
 def get_icon(name, size=20, color="#e0d8f0"):
     """Get a QPixmap icon by name."""
+    logger.debug("get_icon: name=%s, size=%s", name, size)
     icons = {
         "menu": ICON_MENU,
         "add": ICON_ADD,

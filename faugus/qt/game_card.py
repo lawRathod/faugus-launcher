@@ -1,6 +1,9 @@
 """Game card widget — modern glassmorphism design."""
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap, QColor, QCursor, QPainter, QBrush, QPen, QLinearGradient
@@ -19,6 +22,7 @@ _CATEGORIES_FILE = PathManager.user_config("faugus-launcher/categories.txt")
 
 
 def _scaled_pixmap(path, width, height):
+    logger.debug("_scaled_pixmap: path=%s, width=%s, height=%s", path, width, height)
     if path and os.path.isfile(path):
         pixmap = QPixmap(path)
     else:
@@ -36,6 +40,7 @@ def _scaled_pixmap(path, width, height):
 
 
 def _banner_pixmap(path, zoom_pct=100):
+    logger.debug("_banner_pixmap: path=%s, zoom_pct=%s", path, zoom_pct)
     w = int(230 * (zoom_pct / 100.0))
     h = int(w * 1.5)
     return _scaled_pixmap(path, w, h)
@@ -46,6 +51,7 @@ class GameCard(QWidget):
     doubleClicked = Signal(object)
 
     def __init__(self, game, mode="Banners", zoom_pct=100, parent=None):
+        logger.debug("GameCard.__init__: gameid=%s, mode=%s, zoom_pct=%s", game.gameid, mode, zoom_pct)
         super().__init__(parent)
         self.game = game
         self._mode = mode
@@ -130,6 +136,7 @@ class GameCard(QWidget):
         self._age_label.raise_()
 
     def resizeEvent(self, event):
+        logger.debug("GameCard.resizeEvent: w=%s, h=%s", self.width(), self.height())
         super().resizeEvent(event)
         w, h = self.width(), self.height()
         pad = 8
@@ -140,14 +147,17 @@ class GameCard(QWidget):
         self._age_label.move(w - aw - pad, h - 30)
 
     def enterEvent(self, event):
+        logger.debug("GameCard.enterEvent: game=%s", self.game.title)
         self._hovered = True
         self.update()
 
     def leaveEvent(self, event):
+        logger.debug("GameCard.leaveEvent: game=%s", self.game.title)
         self._hovered = False
         self.update()
 
     def paintEvent(self, event):
+        logger.debug("GameCard.paintEvent: hasFocus=%s, _hovered=%s", self.hasFocus(), self._hovered)
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         w, h = self.width(), self.height()
@@ -181,6 +191,7 @@ class GameCard(QWidget):
     # ---- Mode builders ----
 
     def _build_list_mode(self, layout):
+        logger.debug("GameCard._build_list_mode: game=%s", self.game.title)
         row = QHBoxLayout()
         row.setContentsMargins(12, 12, 12, 12)
         row.setSpacing(12)
@@ -198,6 +209,7 @@ class GameCard(QWidget):
         self.setFixedHeight(66)
 
     def _build_blocks_mode(self, layout):
+        logger.debug("GameCard._build_blocks_mode: game=%s", self.game.title)
         block = 110
         icon_px = _scaled_pixmap(self.game.icon, block, block)
         self._image_label.setPixmap(icon_px)
@@ -212,6 +224,7 @@ class GameCard(QWidget):
         self.setFixedWidth(block + 40)
 
     def _build_banners_mode(self, layout):
+        logger.debug("GameCard._build_banners_mode: game=%s, banner=%s", self.game.title, self.game.banner)
         banner_path = self.game.banner
         if not os.path.isfile(banner_path):
             banner_path = _BANNER_PLACEHOLDER
@@ -225,10 +238,12 @@ class GameCard(QWidget):
     # ---- Public API ----
 
     def set_playing(self, playing):
+        logger.debug("GameCard.set_playing: game=%s, playing=%s", self.game.title, playing)
         self._playing = playing
         self._overlay.setVisible(playing)
 
     def set_age_label(self, text):
+        logger.debug("GameCard.set_age_label: text=%s", text)
         if text:
             self._age_label.setText(text)
             self._age_label.setFixedWidth(self._age_label.sizeHint().width())
@@ -237,6 +252,7 @@ class GameCard(QWidget):
             self._age_label.hide()
 
     def update_banner(self, banner_path, zoom_pct):
+        logger.debug("GameCard.update_banner: path=%s, zoom_pct=%s", banner_path, zoom_pct)
         self._zoom_pct = zoom_pct
         if self._mode != "Banners":
             return
@@ -247,12 +263,14 @@ class GameCard(QWidget):
         self._image_label.setFixedSize(px.size())
 
     def set_favorite(self, fav):
+        logger.debug("GameCard.set_favorite: game=%s, fav=%s", self.game.title, fav)
         self.game.favorite = fav
         self._update_fav_icon()
 
     # ---- Context menu ----
 
     def contextMenuEvent(self, event):
+        logger.debug("GameCard.contextMenuEvent: game=%s", self.game.title)
         game = self.game
         menu = QMenu(self)
         menu.addAction("\u25b6  Play").triggered.connect(
@@ -298,29 +316,35 @@ class GameCard(QWidget):
     # ---- Events ----
 
     def mousePressEvent(self, event):
+        logger.debug("GameCard.mousePressEvent: button=%s", event.button())
         if event.button() == Qt.LeftButton:
             self.setFocus()
         super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event):
+        logger.debug("GameCard.mouseDoubleClickEvent: game=%s", self.game.title)
         if event.button() == Qt.LeftButton:
             self.doubleClicked.emit(self.game)
         super().mouseDoubleClickEvent(event)
 
     def focusInEvent(self, event):
+        logger.debug("GameCard.focusInEvent: game=%s", self.game.title)
         super().focusInEvent(event)
         self.update()
 
     def focusOutEvent(self, event):
+        logger.debug("GameCard.focusOutEvent: game=%s", self.game.title)
         super().focusOutEvent(event)
         self.update()
 
     # ---- Helpers ----
 
     def _on_fav_clicked(self):
+        logger.debug("GameCard._on_fav_clicked: game=%s", self.game.title)
         self.context_action.emit("favorite", self.game)
 
     def _update_fav_icon(self):
+        logger.debug("GameCard._update_fav_icon: game=%s", self.game.title)
         is_fav = getattr(self.game, "favorite", False)
         self._fav_btn.setText("\u2605" if is_fav else "\u2606")
         color = "#c084fc" if is_fav else "rgba(224, 216, 240, 0.4)"
@@ -332,6 +356,7 @@ class GameCard(QWidget):
         )
 
     def _load_categories(self):
+        logger.debug("GameCard._load_categories")
         if not os.path.exists(_CATEGORIES_FILE):
             return []
         try:
@@ -341,6 +366,7 @@ class GameCard(QWidget):
             return []
 
     def _current_categories(self):
+        logger.debug("GameCard._current_categories: game=%s", self.game.title)
         raw = getattr(self.game, "category", [])
         if isinstance(raw, str):
             return [raw] if raw else []

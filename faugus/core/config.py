@@ -4,7 +4,10 @@ Wraps the raw config.ini key/value store with type-safe properties
 so callers never need to do string comparisons for boolean flags.
 """
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 
 class AppConfig:
@@ -75,12 +78,14 @@ class AppConfig:
 
     def _load(self):
         """Read config.ini into memory, filling missing keys with defaults."""
+        logger.debug("Loading config from %s", self._config_file)
         if os.path.isfile(self._config_file):
             with open(self._config_file, 'r') as f:
                 for line in f.read().splitlines():
                     if '=' in line:
                         key, value = line.split('=', 1)
                         self._config[key.strip()] = value.strip().strip('"')
+            logger.debug("Loaded %d keys from file", len(self._config))
 
         updated = False
         all_defaults = {**self._BOOLEANS, **self._DEFAULTS}
@@ -89,9 +94,13 @@ class AppConfig:
                 str_val = str(default_value) if not isinstance(default_value, bool) else str(default_value)
                 self._config[key] = str_val
                 updated = True
+                logger.debug("Filled default for missing key %s=%s", key, str_val)
 
         if updated or not os.path.isfile(self._config_file):
+            logger.debug("Config updated or file missing, saving")
             self.save()
+        else:
+            logger.debug("Config loaded, no changes needed")
 
     def save(self):
         """Write the current config to disk."""
@@ -105,6 +114,7 @@ class AppConfig:
                     f.write(f'{key}="{value}"\n')
                 else:
                     f.write(f'{key}={value}\n')
+        logger.debug("Saved config to %s (%d keys)", self._config_file, len(self._config))
 
     def get(self, key, default=''):
         """Get a raw config value as a string."""

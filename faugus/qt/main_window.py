@@ -1,13 +1,16 @@
 """Qt main window assembling sidebar, game grid, toolbar, and controls."""
 
 import json
+import logging
 import os
 import subprocess
 import sys
 from functools import partial
 
+logger = logging.getLogger(__name__)
+
 from PySide6.QtCore import Qt, QTimer, QUrl, QSize
-from PySide6.QtGui import QDesktopServices, QIcon
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -36,7 +39,6 @@ from faugus.core.utils import (
     normalize_view,
     view_filter_matches,
     format_recent_age,
-    set_favorite_in_json,
     version_key,
     build_runner_list,
 )
@@ -67,6 +69,7 @@ class MainWindow(QMainWindow):
     """The main application window."""
 
     def __init__(self, cfg: AppConfig, start_hidden=False):
+        logger.debug("MainWindow.__init__: start_hidden=%s, interface_mode=%s", start_hidden, cfg.interface_mode)
         super().__init__()
         self.cfg = cfg
         self.setWindowTitle(f"Faugus Launcher {VERSION}")
@@ -132,6 +135,7 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self):
         """Build the complete UI layout."""
+        logger.debug("MainWindow._build_ui: interface_mode=%s, show_sidebar=%s", self.interface_mode, self.show_sidebar)
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
@@ -143,6 +147,7 @@ class MainWindow(QMainWindow):
         # Sidebar
         self.sidebar = Sidebar(is_big=is_big, show_sidebar=self.show_sidebar)
         self.sidebar.view_changed.connect(self._on_view_changed)
+        self.sidebar.add_game_clicked.connect(self._on_add_game)
         self.sidebar.clear_recents_clicked.connect(self._on_clear_recents)
         main_layout.addWidget(self.sidebar)
 
@@ -181,6 +186,19 @@ class MainWindow(QMainWindow):
         self.empty_widget = self._build_empty_state()
         self.stack.addWidget(self.empty_widget)
 
+        # Settings view
+        from faugus.qt.dialogs.settings import SettingsView
+        self.settings_view = SettingsView(self.cfg)
+        self.settings_view.settings_changed.connect(self._on_settings_changed)
+        self.stack.addWidget(self.settings_view)
+
+        # Add game view
+        from faugus.qt.dialogs.add_game import AddGameView
+        self.add_game_view = AddGameView(self.cfg)
+        self.add_game_view.game_saved.connect(self._on_game_saved)
+        self.add_game_view.back_requested.connect(lambda: self.sidebar.set_view("library"))
+        self.stack.addWidget(self.add_game_view)
+
         right_layout.addWidget(self.stack, 1)
 
         # Bottom bar
@@ -194,6 +212,7 @@ class MainWindow(QMainWindow):
 
     def _build_toolbar(self, is_big):
         """Build the top toolbar with buttons and search."""
+        logger.debug("MainWindow._build_toolbar: is_big=%s", is_big)
         from faugus.qt.icons import get_icon
 
         toolbar = QWidget()
@@ -214,15 +233,11 @@ class MainWindow(QMainWindow):
             return btn
 
         self.btn_sidebar = make_button("menu", self._toggle_sidebar, "Toggle sidebar")
-        self.btn_add = make_button("add", self._on_add_game, "Add game")
-        self.btn_settings = make_button("settings", self._on_settings, "Settings")
         self.btn_kill = make_button("kill", self._on_kill_all, "Force close all running games")
         self.btn_play = make_button("play", self._on_play, "Play selected game")
 
         layout.addWidget(self.btn_sidebar)
         layout.addSpacing(2)
-        layout.addWidget(self.btn_add)
-        layout.addWidget(self.btn_settings)
         layout.addWidget(self.btn_kill)
         layout.addSpacing(4)
         layout.addWidget(self.btn_play)
@@ -258,12 +273,14 @@ class MainWindow(QMainWindow):
 
     def _build_bottom_bar(self, is_big):
         """Bottom bar placeholder (can be extended)."""
+        logger.debug("MainWindow._build_bottom_bar")
         bar = QWidget()
         bar.setFixedHeight(1)
         return bar
 
     def _build_empty_state(self):
         """Build the empty state placeholder widget."""
+        logger.debug("MainWindow._build_empty_state")
         widget = QWidget()
         widget.setProperty("class", "empty-state")
         layout = QVBoxLayout(widget)
@@ -300,6 +317,7 @@ class MainWindow(QMainWindow):
 
     def _load_sort_data(self):
         """Load playtime, latest-games, and custom order data."""
+        logger.debug("MainWindow._load_sort_data")
         self.playtime_data.clear()
         self.latest_games_order.clear()
         self.custom_order_data.clear()
@@ -328,10 +346,12 @@ class MainWindow(QMainWindow):
     def _load_games(self):
         """Load games from JSON and populate the grid."""
         self.games = self.game_repo.load_all()
+        logger.debug("MainWindow._load_games: count=%s", len(self.games))
         self._rebuild_grid()
 
     def _rebuild_grid(self):
         """Clear and rebuild the game card grid."""
+        logger.debug("MainWindow._rebuild_grid: view=%s, sort=%s", self.current_view, self.current_sort_id)
         # Clear existing cards
         while self.flow_layout.count():
             item = self.flow_layout.takeAt(0)
@@ -372,6 +392,7 @@ class MainWindow(QMainWindow):
     def _get_filtered_sorted_games(self):
         """Return games filtered by view/search/category and sorted."""
         search = self.search_entry.text().lower() if hasattr(self, 'search_entry') else ""
+        logger.debug("MainWindow._get_filtered_sorted_games: search=%s, category=%s", search, self.current_category)
 
         filtered = []
         for game in self.games:
@@ -429,6 +450,7 @@ class MainWindow(QMainWindow):
     def _update_empty_state(self):
         """Show/hide the empty state based on whether games are visible."""
         has_games = self.flow_layout.count() > 0
+        logger.debug("MainWindow._update_empty_state: has_games=%s, view=%s", has_games, self.current_view)
         if has_games:
             self.stack.setCurrentIndex(0)
         else:
@@ -448,12 +470,20 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _on_view_changed(self, view_name):
+        logger.debug("MainWindow._on_view_changed: view_name=%s", view_name)
+        if view_name == "settings":
+            self.stack.setCurrentWidget(self.settings_view)
+            return
+        if view_name == "add":
+            self._on_add_game()
+            return
         self.current_view = view_name
         self.cfg.set("current-view", view_name)
         self.cfg.save()
         self._rebuild_grid()
 
     def _on_clear_recents(self):
+        logger.debug("MainWindow._on_clear_recents")
         self.recents_repo.clear()
         self.recent_games.clear()
         self.cfg.set("current-view", VIEW_LIBRARY)
@@ -463,12 +493,14 @@ class MainWindow(QMainWindow):
 
     def _toggle_sidebar(self):
         self.show_sidebar = not self.show_sidebar
+        logger.debug("MainWindow._toggle_sidebar: show_sidebar=%s", self.show_sidebar)
         self.sidebar.setVisible(self.show_sidebar)
         self.cfg.set("show-sidebar", self.show_sidebar)
         self.cfg.save()
 
     def _update_play_button(self):
         """Update play/stop button based on selected card's running state."""
+        logger.debug("MainWindow._update_play_button")
         from faugus.qt.icons import get_icon
         card = self._selected_card()
         if card and card.game.gameid in self.running:
@@ -483,6 +515,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _on_search_changed(self, text):
+        logger.debug("MainWindow._on_search_changed: text=%s", text)
         self._rebuild_grid()
 
     # ------------------------------------------------------------------ #
@@ -490,6 +523,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _show_sort_menu(self):
+        logger.debug("MainWindow._show_sort_menu")
         menu = QMenu(self)
         for s_id, s_label in self.sort_map.items():
             action = menu.addAction(s_label)
@@ -497,6 +531,7 @@ class MainWindow(QMainWindow):
         menu.exec_(self.btn_sort.mapToGlobal(self.btn_sort.rect().bottomLeft()))
 
     def _set_sort(self, sort_id):
+        logger.debug("MainWindow._set_sort: sort_id=%s", sort_id)
         self.current_sort_id = sort_id
         self.btn_sort.setText(self.sort_map[sort_id])
         self.cfg.set("sort", sort_id)
@@ -511,6 +546,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _on_play(self):
+        logger.debug("MainWindow._on_play")
         card = self._selected_card()
         if card:
             if card.game.gameid in self.running:
@@ -519,6 +555,7 @@ class MainWindow(QMainWindow):
                 self._launch_game(card.game)
 
     def _on_card_double_clicked(self, game):
+        logger.debug("MainWindow._on_card_double_clicked: gameid=%s, title=%s", game.gameid, game.title)
         if game.gameid in self.running:
             self._show_already_running(game.title)
         else:
@@ -526,7 +563,9 @@ class MainWindow(QMainWindow):
 
     def _launch_game(self, game):
         if game.gameid in self.running:
+            logger.debug("MainWindow._launch_game: game %s already running, returning", game.gameid)
             return
+        logger.debug("MainWindow._launch_game: gameid=%s, title=%s", game.gameid, game.title)
 
         from faugus.core.utils import save_json_file
         self.running[game.gameid] = True
@@ -562,6 +601,7 @@ class MainWindow(QMainWindow):
 
     def _update_latest_games(self, gameid):
         """Add gameid to the top of latest-games.txt."""
+        logger.debug("MainWindow._update_latest_games: gameid=%s", gameid)
         entries = []
         if os.path.exists(_latest_games):
             try:
@@ -576,10 +616,12 @@ class MainWindow(QMainWindow):
             f.write("\n".join(entries) + "\n")
 
     def _show_already_running(self, title):
+        logger.debug("MainWindow._show_already_running: title=%s", title)
         QMessageBox.information(self, "Faugus Launcher", f"{title} is already running!")
 
     def _selected_card(self):
         """Return the currently focused GameCard, or None."""
+        logger.debug("MainWindow._selected_card")
         focused = QApplication.focusWidget()
         if isinstance(focused, GameCard):
             return focused
@@ -593,6 +635,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _on_context_action(self, action, game):
+        logger.debug("MainWindow._on_context_action: action=%s, gameid=%s", action, game.gameid)
         if action == "play":
             self._launch_game(game)
         elif action == "edit":
@@ -639,14 +682,14 @@ class MainWindow(QMainWindow):
                 self._rebuild_grid()
 
     def _edit_game(self, game):
-        """Open the edit game dialog."""
-        from faugus.qt.dialogs.add_game import AddGameDialog
-        dlg = AddGameDialog(self, self.cfg, edit_game=game)
-        if dlg.exec():
-            self._load_games()
+        """Open the edit game view."""
+        logger.debug("MainWindow._edit_game: gameid=%s, title=%s", game.gameid, game.title)
+        self.add_game_view.load_game(game)
+        self.stack.setCurrentWidget(self.add_game_view)
 
     def _delete_game(self, game):
         """Confirm and delete a game."""
+        logger.debug("MainWindow._delete_game: gameid=%s, title=%s", game.gameid, game.title)
         reply = QMessageBox.question(
             self, "Delete Game",
             f"Are you sure you want to delete '{game.title}'?",
@@ -658,6 +701,7 @@ class MainWindow(QMainWindow):
 
     def _duplicate_game(self, game):
         """Duplicate a game with a new title."""
+        logger.debug("MainWindow._duplicate_game: gameid=%s, title=%s", game.gameid, game.title)
         from PySide6.QtWidgets import QInputDialog
         title, ok = QInputDialog.getText(self, "Duplicate Game", "New title:", text=game.title)
         if ok and title:
@@ -669,6 +713,7 @@ class MainWindow(QMainWindow):
 
     def _run_file_in_prefix(self, game):
         """Open a file chooser to run a file inside the game's prefix."""
+        logger.debug("MainWindow._run_file_in_prefix: gameid=%s", game.gameid)
         from PySide6.QtWidgets import QFileDialog
         path, _ = QFileDialog.getOpenFileName(
             self, "Select a file to run", "",
@@ -683,6 +728,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _on_kill_all(self):
+        logger.debug("MainWindow._on_kill_all: running_count=%s", len(self.running))
         if not self.running:
             return
         reply = QMessageBox.question(
@@ -696,7 +742,7 @@ class MainWindow(QMainWindow):
                 proc = self.processes.get(gameid)
                 if proc:
                     try:
-                        proc.send_signal(signal.SIGUSR1)
+                        proc.terminate()
                     except Exception:
                         pass
             self.running.clear()
@@ -708,12 +754,12 @@ class MainWindow(QMainWindow):
 
     def _stop_game(self, game):
         """Stop a running game."""
-        import signal
         gameid = game.gameid
+        logger.debug("MainWindow._stop_game: gameid=%s", gameid)
         proc = self.processes.get(gameid)
         if proc:
             try:
-                proc.send_signal(signal.SIGUSR1)
+                proc.terminate()
             except Exception:
                 pass
         self.running.pop(gameid, None)
@@ -731,6 +777,7 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _check_running(self):
+        logger.debug("MainWindow._check_running: tracked=%s", len(self.processes))
         changed = False
         for gameid, proc in list(self.processes.items()):
             if proc.poll() is not None:
@@ -749,24 +796,27 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------ #
 
     def _on_add_game(self):
-        from faugus.qt.dialogs.add_game import AddGameDialog
-        dlg = AddGameDialog(self, self.cfg)
-        if dlg.exec():
-            self._load_games()
+        logger.debug("MainWindow._on_add_game")
+        self.add_game_view.is_edit = False
+        self.add_game_view.edit_game = None
+        self.stack.setCurrentWidget(self.add_game_view)
 
-    def _on_settings(self):
-        from faugus.qt.dialogs.settings import SettingsDialog
-        dlg = SettingsDialog(self, self.cfg)
-        if dlg.exec():
-            # Reload config
-            self.cfg = AppConfig(self.cfg._config_file)
-            self.interface_mode = self.cfg.interface_mode
-            self.show_categories = self.cfg.show_categories
-            self.show_labels = self.cfg.show_labels
-            self.show_sidebar = self.cfg.show_sidebar
-            self.sidebar.setVisible(self.show_sidebar)
+    def _on_game_saved(self):
+        logger.debug("MainWindow._on_game_saved")
+        self._load_games()
+        self.sidebar.set_view("library")
 
-            self._rebuild_grid()
+    def _on_settings_changed(self):
+        logger.debug("MainWindow._on_settings_changed: interface_mode=%s, show_categories=%s",
+                     self.cfg.interface_mode, self.cfg.show_categories)
+        self.interface_mode = self.cfg.interface_mode
+        self.show_categories = self.cfg.show_categories
+        self.show_labels = self.cfg.show_labels
+        self.show_sidebar = self.cfg.show_sidebar
+        self.sidebar.setVisible(self.show_sidebar)
+        is_big = self.interface_mode in ("Blocks", "Banners")
+        self.sidebar.set_big_mode(is_big)
+        self._rebuild_grid()
 
     # ------------------------------------------------------------------ #
     # Window close                                                         #
@@ -779,5 +829,7 @@ class MainWindow(QMainWindow):
         self.cfg.set("current-view", self.current_view)
         self.cfg.set("sort", self.current_sort_id)
         self.cfg.set("banner-size", self.banner_size)
+        logger.debug("closeEvent: current_view=%s, interface_mode=%s, show_sidebar=%s",
+                     self.current_view, self.cfg.interface_mode, self.cfg.show_sidebar)
         self.cfg.save()
         super().closeEvent(event)

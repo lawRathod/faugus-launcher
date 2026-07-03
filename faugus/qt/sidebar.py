@@ -1,14 +1,19 @@
 """Sidebar widget — modern design with active indicator."""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
-    QMenu, QPushButton, QVBoxLayout, QWidget, QLabel, QFrame,
+    QButtonGroup, QMenu, QPushButton, QVBoxLayout, QWidget, QLabel, QFrame,
 )
 
 
 class Sidebar(QWidget):
     view_changed = Signal(str)
+    add_game_clicked = Signal()
     clear_recents_clicked = Signal()
 
     _NAV_ITEMS = [
@@ -18,6 +23,7 @@ class Sidebar(QWidget):
     ]
 
     def __init__(self, is_big=True, show_sidebar=True, parent=None):
+        logger.debug("Sidebar.__init__: is_big=%s, show_sidebar=%s", is_big, show_sidebar)
         super().__init__(parent)
         self.buttons = {}
         self.setObjectName("sidebar")
@@ -60,7 +66,10 @@ class Sidebar(QWidget):
 
         layout.addSpacing(8)
 
-        # Navigation
+        # Navigation group (exclusive selection)
+        self._nav_group = QButtonGroup(self)
+        self._nav_group.setExclusive(True)
+
         for view_name, label in self._NAV_ITEMS:
             btn = QPushButton(label)
             btn.setCheckable(True)
@@ -73,10 +82,40 @@ class Sidebar(QWidget):
                 btn.customContextMenuRequested.connect(
                     self._show_recents_context_menu)
 
+            self._nav_group.addButton(btn)
             layout.addWidget(btn)
             self.buttons[view_name] = btn
 
         layout.addStretch()
+
+        # Bottom section divider
+        bot_div = QFrame()
+        bot_div.setFixedHeight(1)
+        bot_div.setStyleSheet("background: rgba(138, 92, 246, 0.08);")
+        bot_div.setContentsMargins(8, 0, 8, 0)
+        layout.addWidget(bot_div)
+
+        layout.addSpacing(4)
+
+        # Add game
+        btn_add = QPushButton("\u2795  Add Game")
+        btn_add.setCursor(Qt.PointingHandCursor)
+        btn_add.setProperty("class", "sidebar-btn")
+        btn_add.clicked.connect(self.add_game_clicked.emit)
+        layout.addWidget(btn_add)
+
+        # Settings
+        btn_settings = QPushButton("\u2699  Settings")
+        btn_settings.setCursor(Qt.PointingHandCursor)
+        btn_settings.setProperty("class", "sidebar-btn")
+        btn_settings.clicked.connect(lambda: self.set_view("settings"))
+        layout.addWidget(btn_settings)
+
+        self.buttons["settings"] = btn_settings
+        btn_settings.setCheckable(True)
+        self._nav_group.addButton(btn_settings)
+
+        layout.addSpacing(4)
 
         # Footer version label
         ver = QLabel("v2.0.0")
@@ -86,10 +125,17 @@ class Sidebar(QWidget):
         )
         layout.addWidget(ver)
 
+        self._is_big = is_big
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.setVisible(show_sidebar)
 
+    def set_big_mode(self, is_big):
+        logger.debug("Sidebar.set_big_mode: is_big=%s", is_big)
+        self._is_big = is_big
+        self.setFixedWidth(230 if is_big else 160)
+
     def set_view(self, view_name):
+        logger.debug("Sidebar.set_view: view_name=%s", view_name)
         for name, btn in self.buttons.items():
             btn.setChecked(name == view_name)
             if name == view_name:
@@ -101,6 +147,7 @@ class Sidebar(QWidget):
         self.view_changed.emit(view_name)
 
     def _show_recents_context_menu(self, pos):
+        logger.debug("Sidebar._show_recents_context_menu")
         menu = QMenu(self)
         clear_action = menu.addAction("\U0001f5d1  Clear recents")
         clear_action.triggered.connect(self.clear_recents_clicked.emit)

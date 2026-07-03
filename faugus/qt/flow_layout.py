@@ -4,6 +4,10 @@ Arranges child widgets in a flow that wraps to the next row when the
 current row is full. Based on the well-known Qt FlowLayout pattern.
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from PySide6.QtCore import Qt, QRect, QSize, QPoint
 from PySide6.QtWidgets import QLayout, QLayoutItem, QSizePolicy, QSpacerItem
 
@@ -23,6 +27,7 @@ class FlowLayout(QLayout):
     """
 
     def __init__(self, parent=None, margin=-1, h_spacing=-1, v_spacing=-1):
+        logger.debug("FlowLayout.__init__: margin=%s, h_spacing=%s, v_spacing=%s", margin, h_spacing, v_spacing)
         super().__init__(parent)
         if margin != -1:
             self.setContentsMargins(margin, margin, margin, margin)
@@ -33,6 +38,7 @@ class FlowLayout(QLayout):
         self._max_columns = 0  # 0 = unlimited
 
     def addItem(self, item):
+        logger.debug("FlowLayout.addItem")
         self._items.append(item)
 
     def horizontalSpacing(self):
@@ -42,20 +48,24 @@ class FlowLayout(QLayout):
         return self._v_spacing
 
     def setHorizontalSpacing(self, spacing):
+        logger.debug("FlowLayout.setHorizontalSpacing: spacing=%s", spacing)
         self._h_spacing = spacing
         self.invalidate()
 
     def setVerticalSpacing(self, spacing):
+        logger.debug("FlowLayout.setVerticalSpacing: spacing=%s", spacing)
         self._v_spacing = spacing
         self.invalidate()
 
     def setMinColumns(self, count):
         """Set the minimum number of children per row."""
+        logger.debug("FlowLayout.setMinColumns: count=%s", count)
         self._min_columns = max(1, count)
         self.invalidate()
 
     def setMaxColumns(self, count):
         """Set the maximum number of children per row (0 = unlimited)."""
+        logger.debug("FlowLayout.setMaxColumns: count=%s", count)
         self._max_columns = max(0, count)
         self.invalidate()
 
@@ -68,6 +78,7 @@ class FlowLayout(QLayout):
         return None
 
     def takeAt(self, index):
+        logger.debug("FlowLayout.takeAt: index=%s, count=%s", index, len(self._items))
         if 0 <= index < len(self._items):
             return self._items.pop(index)
         return None
@@ -79,9 +90,11 @@ class FlowLayout(QLayout):
         return True
 
     def heightForWidth(self, width):
+        logger.debug("FlowLayout.heightForWidth: width=%s", width)
         return self._do_layout(QRect(0, 0, width, 0), test_only=True)
 
     def setGeometry(self, rect):
+        logger.debug("FlowLayout.setGeometry: rect=%s", rect)
         super().setGeometry(rect)
         self._do_layout(rect, test_only=False)
 
@@ -89,6 +102,7 @@ class FlowLayout(QLayout):
         return self.minimumSize()
 
     def minimumSize(self):
+        logger.debug("FlowLayout.minimumSize: item_count=%s", len(self._items))
         size = QSize(0, 0)
         for item in self._items:
             size = size.expandedTo(item.minimumSize())
@@ -97,13 +111,16 @@ class FlowLayout(QLayout):
         return size
 
     def invalidate(self):
+        logger.debug("FlowLayout.invalidate")
         super().invalidate()
 
     def items(self):
         """Iterate over all contained items."""
+        logger.debug("FlowLayout.items: count=%s", len(self._items))
         return list(self._items)
 
     def _do_layout(self, rect, test_only):
+        logger.debug("FlowLayout._do_layout: rect=%s, test_only=%s, item_count=%s", rect, test_only, len(self._items))
         m = self.contentsMargins()
         effective = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom())
         x = effective.x()

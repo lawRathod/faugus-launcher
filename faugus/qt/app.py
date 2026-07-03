@@ -1,12 +1,15 @@
 """Qt application entry point for Faugus Launcher."""
 
+import logging
 import os
 import signal
 import sys
 
+logger = logging.getLogger(__name__)
+
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QColor, QPalette
-from PySide6.QtCore import QSocketNotifier, QTimer
+from PySide6.QtCore import QSocketNotifier
 
 from faugus.core.config import AppConfig
 from faugus.path_manager import PathManager
@@ -14,6 +17,7 @@ from faugus.path_manager import PathManager
 
 def _apply_dark_palette(app):
     """Force a dark color palette so the app always looks correct."""
+    logger.debug("_apply_dark_palette")
     palette = QPalette()
 
     bg_darker = QColor(18, 12, 28)
@@ -46,6 +50,8 @@ def _apply_dark_palette(app):
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG, format="%(name)s [%(levelname)s] %(message)s")
+    logger.debug("app.main: argv=%s", sys.argv)
     start_hidden = "--hide" in sys.argv
 
     if len(sys.argv) == 2 and not sys.argv[1].startswith("--"):
@@ -70,10 +76,13 @@ def main():
 
     # Allow Ctrl+C to quit: watch stdin for SIGINT
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    stdin_fd = sys.stdin.fileno()
-    if os.isatty(stdin_fd):
-        notif = QSocketNotifier(stdin_fd, QSocketNotifier.Read, app)
-        notif.activated.connect(lambda: app.quit())
+    try:
+        stdin_fd = sys.stdin.fileno()
+        if os.isatty(stdin_fd):
+            notif = QSocketNotifier(stdin_fd, QSocketNotifier.Read, app)
+            notif.activated.connect(lambda: app.quit())
+    except (AttributeError, ValueError, OSError):
+        pass
 
     from faugus.qt.main_window import MainWindow
     window = MainWindow(cfg, start_hidden=start_hidden)

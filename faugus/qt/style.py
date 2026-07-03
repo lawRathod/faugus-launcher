@@ -227,6 +227,7 @@ def get_stylesheet():
             background: rgba(138, 92, 246, 0.08);
             border: 1px solid rgba(138, 92, 246, 0.15);
             color: #e8e0f0; font-size: 14px; font-weight: 500;
+            icon: none;
         }
         QMessageBox QPushButton:hover, QDialogButtonBox QPushButton:hover {
             background: rgba(138, 92, 246, 0.2);
