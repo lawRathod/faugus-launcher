@@ -56,22 +56,90 @@ class TestBrowse:
         assert by_name.get("adir") == "dir"
 
 
-class TestUploadIcon:
-    """POST /api/files/icon — stub until multipart handling"""
+# Test PNG data: starts with valid PNG magic bytes
+# Full validation is not needed — endpoint only checks magic + size
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_TEST_PNG = _PNG_MAGIC + b"\x00\x00\x00\x0dIHDR... stub data"
 
-    def test_not_implemented(self, client) -> None:
-        """Returns 501 for now."""
-        resp = client.post("/api/files/icon")
-        assert resp.status_code == 501
+
+class TestUploadIcon:
+    """POST /api/files/icon"""
+
+    def test_upload_valid(self, client, pm) -> None:
+        """Upload a valid PNG icon returns the saved path."""
+        resp = client.post(
+            "/api/files/icon",
+            files={"file": ("icon.png", _TEST_PNG, "image/png")},
+            data={"gameid": "test-game"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "path" in data
+        assert data["path"].endswith(".ico") or data["path"].endswith(".png")
+        import os
+        assert os.path.isfile(data["path"])
+
+    def test_rejects_non_image(self, client) -> None:
+        """Non-image file returns 422."""
+        resp = client.post(
+            "/api/files/icon",
+            files={"file": ("bad.txt", b"not an image", "text/plain")},
+            data={"gameid": "test-game"},
+        )
+        assert resp.status_code == 422
+
+    def test_rejects_no_gameid(self, client) -> None:
+        """Missing gameid returns 422."""
+        resp = client.post(
+            "/api/files/icon",
+            files={"file": ("icon.png", _TEST_PNG, "image/png")},
+        )
+        assert resp.status_code == 422
+
+    def test_rejects_huge_file(self, client) -> None:
+        """File over size limit returns 422."""
+        huge = b"x" * (11 * 1024 * 1024)  # 11 MB
+        resp = client.post(
+            "/api/files/icon",
+            files={"file": ("big.png", huge, "image/png")},
+            data={"gameid": "test-game"},
+        )
+        assert resp.status_code == 422
 
 
 class TestUploadBanner:
-    """POST /api/files/banner — stub until multipart handling"""
+    """POST /api/files/banner"""
 
-    def test_not_implemented(self, client) -> None:
-        """Returns 501 for now."""
-        resp = client.post("/api/files/banner")
-        assert resp.status_code == 501
+    def test_upload_valid(self, client, pm) -> None:
+        """Upload a valid PNG banner returns the saved path."""
+        resp = client.post(
+            "/api/files/banner",
+            files={"file": ("banner.png", _TEST_PNG, "image/png")},
+            data={"gameid": "test-game"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "path" in data
+        assert os.path.isfile(data["path"])
+
+    def test_rejects_non_image(self, client) -> None:
+        """Non-image file returns 422."""
+        resp = client.post(
+            "/api/files/banner",
+            files={"file": ("bad.txt", b"not an image", "text/plain")},
+            data={"gameid": "test-game"},
+        )
+        assert resp.status_code == 422
+
+    def test_rejects_huge_file(self, client) -> None:
+        """File over size limit returns 422."""
+        huge = b"x" * (21 * 1024 * 1024)  # 21 MB
+        resp = client.post(
+            "/api/files/banner",
+            files={"file": ("big.png", huge, "image/png")},
+            data={"gameid": "test-game"},
+        )
+        assert resp.status_code == 422
 
 
 class TestPrefixSuggest:
