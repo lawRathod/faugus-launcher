@@ -10,6 +10,24 @@ Faugus Launcher is a lightweight GTK3 Python application for running Windows gam
 - **Build system:** Meson
 - **Domain:** Linux gaming, Wine/Proton, game launcher
 
+## Long-Term Context
+
+When I say "long-term context" or "save this to context", I mean the
+markdown files in the ``.agents/`` directory. This directory is the
+canonical store for everything that should persist between sessions:
+
+- ``.agents/session.md`` — log of what was worked on each session
+- ``.agents/decisions.md`` — architectural decisions with rationale (AD-001, AD-002, etc.)
+- ``.agents/context.json`` — machine-readable state snapshot (branch, tests, agents, phases)
+- ``.agents/research/`` — feasibility studies, technical research
+- ``.agents/plans/`` — implementation plans and design docs
+
+These files are the source of truth for the project's trajectory.
+Subagents (``plan-critic``, ``code-reviewer``) read them to understand
+current state before reviewing plans or code. Always update the
+relevant file when a decision is made, a phase completes, or state
+changes.
+
 ## Architecture
 
 ### Entry Points
