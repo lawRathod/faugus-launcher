@@ -64,7 +64,6 @@ class TestListRunnerVariants:
         assert resp.status_code == 200
         variants = resp.json()
         assert isinstance(variants, list)
-        # At minimum cachyos and ge should be present
         keys = [v["key"] for v in variants]
         assert "cachyos" in keys
         assert "ge" in keys
@@ -75,5 +74,4 @@ class TestListRunnerVariants:
         for variant in resp.json():
             assert "key" in variant
             assert "display_name" in variant
-            # latest_version may be None if API unreachable, but field exists
             assert "latest_version" in variant

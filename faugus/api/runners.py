@@ -68,12 +68,36 @@ def list_runners() -> list[dict]:
 
 @router.get("/api/runners/latest")
 def latest_runner_versions() -> list[dict]:
-    """Return known runner variants and their metadata.
+    """Fetch latest version tags from GitHub for each runner variant."""
+    from faugus.proton_downloader import get_latest_tag_and_url
 
-    TODO: fetch latest_version from GitHub API (proton_downloader has
-    the logic — wire it up in a background task).
-    """
-    return [
-        {"key": key, "display_name": info["name"], "latest_version": None}
-        for key, info in _VARIANTS.items()
-    ]
+    results: list[dict] = []
+    for key, info in _VARIANTS.items():
+        tag = None
+        try:
+            if key == "cachyos":
+                tag, _, _ = get_latest_tag_and_url(
+                    "https://api.github.com/repos/CachyOS/proton-cachyos/releases",
+                    ["x86_64.tar.xz"],
+                )
+            elif key == "ge":
+                tag, _, _ = get_latest_tag_and_url(
+                    "https://api.github.com/repos/GloriousEggroll/proton-ge-custom/releases",
+                    [".tar.gz", ".tar.xz"],
+                )
+            elif key == "em":
+                tag, _, _ = get_latest_tag_and_url(
+                    "https://api.github.com/repos/Etaash-mathamsetty/Proton/releases",
+                    [".tar.xz"],
+                )
+            elif key == "dw":
+                tag, _, _ = get_latest_tag_and_url(
+                    "https://api.github.com/repos/CachyOS/proton-cachyos/releases",
+                    ["x86_64.tar.xz"],
+                )
+            if tag:
+                tag = tag.lstrip("v")
+        except Exception:
+            pass  # API unreachable, return None
+        results.append({"key": key, "display_name": info["name"], "latest_version": tag})
+    return results
