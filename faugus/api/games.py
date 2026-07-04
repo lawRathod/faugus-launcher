@@ -104,6 +104,21 @@ def _normalize_categories(raw: Any) -> list[str]:
     return []
 
 
+def _force_str(v: Any) -> str:
+    """Coerce a value to string, handling bool/int/float/None.
+
+    Existing games.json has mixed types (booleans, ints, floats)
+    for fields declared as ``str`` in the response model.
+    """
+    if isinstance(v, bool):
+        return "True" if v else ""
+    if isinstance(v, (int, float)):
+        return str(v)
+    if v is None:
+        return ""
+    return str(v)
+
+
 def _game_response(g: dict) -> dict:
     """Convert an internal game dict to the API response shape."""
     return {
@@ -119,23 +134,23 @@ def _game_response(g: dict) -> dict:
         "banner": g.get("banner", ""),
         "category": _normalize_categories(g.get("category", [])),
         "hidden": g.get("hidden", False),
-        "mangohud": g.get("mangohud", ""),
-        "gamemode": g.get("gamemode", ""),
-        "disable_hidraw": g.get("disable_hidraw", ""),
-        "prevent_sleep": g.get("prevent_sleep", False),
+        "mangohud": _force_str(g.get("mangohud", "")),
+        "gamemode": _force_str(g.get("gamemode", "")),
+        "disable_hidraw": _force_str(g.get("disable_hidraw", "")),
+        "prevent_sleep": g.get("prevent_sleep") if isinstance(g.get("prevent_sleep"), bool) else False,
         "playtime": g.get("playtime", 0),
         "lastplayed": g.get("lastplayed", 0),
-        "addapp_checkbox": g.get("addapp_checkbox", ""),
+        "addapp_checkbox": _force_str(g.get("addapp_checkbox", "")),
         "addapp": g.get("addapp", ""),
         "addapp_bat": g.get("addapp_bat", ""),
         "addapp_delay": g.get("addapp_delay", ""),
-        "addapp_first": g.get("addapp_first", ""),
-        "lossless_enabled": g.get("lossless_enabled", ""),
-        "lossless_multiplier": g.get("lossless_multiplier", ""),
-        "lossless_flow": g.get("lossless_flow", ""),
-        "lossless_performance": g.get("lossless_performance", ""),
-        "lossless_hdr": g.get("lossless_hdr", ""),
-        "lossless_present": g.get("lossless_present", ""),
+        "addapp_first": _force_str(g.get("addapp_first", "")),
+        "lossless_enabled": _force_str(g.get("lossless_enabled", "")),
+        "lossless_multiplier": _force_str(g.get("lossless_multiplier", "")),
+        "lossless_flow": _force_str(g.get("lossless_flow", "")),
+        "lossless_performance": _force_str(g.get("lossless_performance", "")),
+        "lossless_hdr": _force_str(g.get("lossless_hdr", "")),
+        "lossless_present": _force_str(g.get("lossless_present", "")),
         "settings": g.get("settings", {}),
     }
 
