@@ -4,7 +4,6 @@ Every test is written before the implementation code.
 """
 
 import json
-import pytest
 from pathlib import Path
 
 
@@ -47,6 +46,16 @@ class TestListGames:
         assert "visible-1" in ids
         assert "hidden-1" in ids
 
+    def test_hidden_as_bool_param(self, client, sample_game, games_path) -> None:
+        """?hidden=true (bool string) also works."""
+        hidden = dict(sample_game, gameid="h1", hidden=True)
+        visible = dict(sample_game, gameid="v1", hidden=False)
+        games_path.write_text(json.dumps([hidden, visible]))
+        resp = client.get("/api/games?hidden=true")
+        ids = [g["gameid"] for g in resp.json()]
+        assert "h1" in ids
+        assert "v1" in ids
+
     def test_search_filter(self, client, sample_game, games_path) -> None:
         """?search=term filters by title substring (case-insensitive)."""
         games_path.write_text(json.dumps([
@@ -81,6 +90,28 @@ class TestListGames:
         assert "g2" not in ids
         assert "g3" in ids
 
+    def test_category_legacy_string(self, client, sample_game, games_path) -> None:
+        """Legacy games with category as a string still get filtered."""
+        games_path.write_text(json.dumps([
+            dict(sample_game, gameid="g1", category="RTS"),
+            dict(sample_game, gameid="g2", category="FPS"),
+        ]))
+        resp = client.get("/api/games?category=RTS")
+        ids = [g["gameid"] for g in resp.json()]
+        assert "g1" in ids
+        assert "g2" not in ids
+
+    def test_category_false_value(self, client, sample_game, games_path) -> None:
+        """Category = False is treated as uncategorized."""
+        games_path.write_text(json.dumps([
+            dict(sample_game, gameid="g1", category=False),
+            dict(sample_game, gameid="g2", category=["RTS"]),
+        ]))
+        resp = client.get("/api/games?category=_uncategorized")
+        ids = [g["gameid"] for g in resp.json()]
+        assert "g1" in ids
+        assert "g2" not in ids
+
     def test_category_uncategorized(self, client, sample_game, games_path) -> None:
         """?category=_uncategorized returns games with no category."""
         games_path.write_text(json.dumps([
@@ -102,20 +133,36 @@ class TestCreateGame:
         """Create a game with minimal fields."""
         resp = client.post("/api/games", json={
             "title": "My Game",
-            "exe": "/home/game.exe",
-            "path": "/home",
+            "path": "/home/game.exe",
             "prefix": "/home/prefix",
         })
         assert resp.status_code == 201
         data = resp.json()
         assert data["title"] == "My Game"
         assert data["gameid"]  # auto-generated
+        assert data["path"] == "/home/game.exe"
 
     def test_create_requires_title(self, client) -> None:
         """Missing title returns 422."""
         resp = client.post("/api/games", json={
-            "exe": "/home/game.exe",
-            "path": "/home",
+            "path": "/home/game.exe",
+            "prefix": "/home/prefix",
+        })
+        assert resp.status_code == 422
+
+    def test_create_empty_title(self, client) -> None:
+        """Empty string title returns 422."""
+        resp = client.post("/api/games", json={
+            "title": "",
+            "path": "/home/game.exe",
+            "prefix": "/home/prefix",
+        })
+        assert resp.status_code == 422
+
+    def test_create_requires_path(self, client) -> None:
+        """Missing path returns 422."""
+        resp = client.post("/api/games", json={
+            "title": "Game",
             "prefix": "/home/prefix",
         })
         assert resp.status_code == 422
@@ -123,21 +170,42 @@ class TestCreateGame:
     def test_create_duplicate_title(self, client, sample_game, games_path) -> None:
         """Duplicate title returns 409."""
         games_path.write_text(json.dumps([sample_game]))
-        resp = client.post("/api/games", json=sample_game)
+        resp = client.post("/api/games", json={
+            "title": sample_game["title"],
+            "path": "/other.exe",
+            "prefix": "/other/prefix",
+        })
         assert resp.status_code == 409
-        assert "already exists" in resp.text.lower()
+        assert resp.json()["detail"] == "Game 'Test Game' already exists."
 
     def test_create_persists_to_disk(self, client, games_path) -> None:
         """Created game is written to games.json."""
         client.post("/api/games", json={
             "title": "Persist Test",
-            "exe": "/home/persist.exe",
-            "path": "/home",
+            "path": "/home/persist.exe",
             "prefix": "/home/prefix",
         })
         saved = json.loads(games_path.read_text())
         assert len(saved) == 1
         assert saved[0]["title"] == "Persist Test"
+
+    def test_create_rejects_path_traversal(self, client) -> None:
+        """Path with .. returns 422."""
+        resp = client.post("/api/games", json={
+            "title": "Bad",
+            "path": "/home/../../etc/game.exe",
+            "prefix": "/home/prefix",
+        })
+        assert resp.status_code == 422
+
+    def test_create_rejects_prefix_traversal(self, client) -> None:
+        """Prefix with .. returns 422."""
+        resp = client.post("/api/games", json={
+            "title": "Bad",
+            "path": "/home/game.exe",
+            "prefix": "/home/../../etc/prefix",
+        })
+        assert resp.status_code == 422
 
 
 class TestGetGame:
@@ -161,7 +229,6 @@ class TestUpdateGame:
         games_path.write_text(json.dumps([sample_game]))
         resp = client.put("/api/games/test-game-1", json={
             "title": "Updated Title",
-            "exe": sample_game["exe"],
             "path": sample_game["path"],
             "prefix": sample_game["prefix"],
         })
@@ -170,11 +237,25 @@ class TestUpdateGame:
         saved = json.loads(games_path.read_text())
         assert saved[0]["title"] == "Updated Title"
 
+    def test_update_preserves_extra_fields(self, client, sample_game, games_path) -> None:
+        """Fields not in the update model (e.g. mangohud) survive the update."""
+        game = dict(sample_game, mangohud=True, protonfix="12345", lossless_multiplier="3")
+        games_path.write_text(json.dumps([game]))
+        resp = client.put("/api/games/test-game-1", json={
+            "title": "Still Extra",
+            "path": game["path"],
+            "prefix": game["prefix"],
+        })
+        assert resp.status_code == 200
+        saved = json.loads(games_path.read_text())
+        assert saved[0]["mangohud"] is True
+        assert saved[0]["protonfix"] == "12345"
+        assert saved[0]["lossless_multiplier"] == "3"
+
     def test_update_nonexistent(self, client) -> None:
         resp = client.put("/api/games/nonexistent", json={
             "title": "Nope",
-            "exe": "/nope.exe",
-            "path": "/nope",
+            "path": "/nope.exe",
             "prefix": "/nope",
         })
         assert resp.status_code == 404
@@ -254,9 +335,9 @@ class TestSetCategory:
         games_path.write_text(json.dumps([sample_game]))
         resp = client.patch("/api/games/test-game-1/category", json={"categories": ["RTS", "Strategy"]})
         assert resp.status_code == 200
-        assert set(resp.json()["category"]) == {"RTS", "Strategy"}
+        assert sorted(resp.json()["category"]) == sorted(["RTS", "Strategy"])
         saved = json.loads(games_path.read_text())
-        assert set(saved[0]["category"]) == {"RTS", "Strategy"}
+        assert sorted(saved[0]["category"]) == sorted(["RTS", "Strategy"])
 
     def test_set_category_nonexistent(self, client) -> None:
         resp = client.patch("/api/games/nonexistent/category", json={"categories": ["RTS"]})
@@ -268,7 +349,6 @@ class TestCustomOrder:
 
     def test_save_order(self, client, sample_game, games_path, pm) -> None:
         order_path = Path(pm.custom_order)
-        # Pre-create the dir so write works
         order_path.parent.mkdir(parents=True, exist_ok=True)
         games_path.write_text(json.dumps([
             dict(sample_game, gameid="g1"),
