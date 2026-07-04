@@ -251,7 +251,8 @@ class MainWindow(QMainWindow):
         self.gamepad_indicator = QLabel()
         self.gamepad_indicator.setFixedSize(24, 24)
         self.gamepad_indicator.setAlignment(Qt.AlignCenter)
-        self.gamepad_indicator.setToolTip("No gamepad detected")
+        self.gamepad_indicator.setToolTip("Gamepad disconnected")
+        self.gamepad_indicator.setVisible(False)
         self.gamepad_indicator.setStyleSheet(
             "color: rgba(200, 184, 224, 0.2); font-size: 16px;"
             " background: transparent; border: none;"
@@ -851,6 +852,7 @@ class MainWindow(QMainWindow):
             logger.debug("Failed to init gamepad: %s", e)
 
     def _on_gamepad_connected(self, connected):
+        self.gamepad_indicator.setVisible(True)
         if connected:
             self.gamepad_indicator.setStyleSheet(
                 "color: #a78bfa; font-size: 16px;"
@@ -862,7 +864,7 @@ class MainWindow(QMainWindow):
                 "color: rgba(200, 184, 224, 0.2); font-size: 16px;"
                 " background: transparent; border: none;"
             )
-            self.gamepad_indicator.setToolTip("No gamepad detected")
+            self.gamepad_indicator.setToolTip("Gamepad disconnected")
 
     def _on_settings_changed(self):
         logger.debug("MainWindow._on_settings_changed: interface_mode=%s, show_categories=%s",

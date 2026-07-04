@@ -5,8 +5,8 @@ import os
 
 logger = logging.getLogger(__name__)
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap, QColor, QCursor, QPainter, QBrush, QPen, QLinearGradient
+from PySide6.QtCore import Qt, QRectF, Signal
+from PySide6.QtGui import QPixmap, QColor, QCursor, QPainter, QPainterPath, QBrush, QPen, QLinearGradient
 from PySide6.QtWidgets import (
     QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
     QMenu, QSizePolicy, QGraphicsDropShadowEffect,
@@ -19,6 +19,38 @@ _BANNER_PLACEHOLDER = PathManager.system_data("faugus-launcher/faugus-banner.png
 _DEFAULT_ICON = PathManager.get_icon("faugus-launcher.svg")
 _LOGS_DIR = PathManager.user_config("faugus-launcher/logs")
 _CATEGORIES_FILE = PathManager.user_config("faugus-launcher/categories.txt")
+
+
+class BannerLabel(QLabel):
+    """QLabel that clips the pixmap to rounded top corners."""
+
+    def __init__(self, radius=14, parent=None):
+        super().__init__(parent)
+        self._radius = radius
+        self.setAlignment(Qt.AlignCenter)
+
+    def paintEvent(self, event):
+        pixmap = self.pixmap()
+        if not pixmap or pixmap.isNull():
+            super().paintEvent(event)
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        path = QPainterPath()
+        rect = QRectF(self.rect())
+        r = self._radius
+        path.moveTo(rect.left(), rect.top() + r)
+        path.arcTo(rect.left(), rect.top(), r * 2, r * 2, 180, -90)
+        path.arcTo(rect.right() - r * 2, rect.top(), r * 2, r * 2, 90, -90)
+        path.lineTo(rect.right(), rect.bottom())
+        path.lineTo(rect.left(), rect.bottom())
+        path.closeSubpath()
+        p.setClipPath(path)
+        scaled = pixmap.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+        x = (self.width() - scaled.width()) // 2
+        y = (self.height() - scaled.height()) // 2
+        p.drawPixmap(x, y, scaled)
+        p.end()
 
 
 def _scaled_pixmap(path, width, height):
@@ -68,13 +100,8 @@ class GameCard(QWidget):
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
 
-        self._image_label = QLabel()
-        self._image_label.setAlignment(Qt.AlignCenter)
+        self._image_label = BannerLabel(radius=14)
         self._image_label.setMouseTracking(True)
-        self._image_label.setStyleSheet(
-            "QLabel { border-top-left-radius: 14px; border-top-right-radius: 14px;"
-            " border-bottom-left-radius: 0px; border-bottom-right-radius: 0px; }"
-        )
 
         self._title_label = QLabel(game.title)
         self._title_label.setAlignment(Qt.AlignCenter)
