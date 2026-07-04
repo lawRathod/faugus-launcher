@@ -34,6 +34,10 @@ class TestSteamGames:
         assert isinstance(resp.json(), list)
 
 
+import json
+from pathlib import Path
+
+
 class TestSteamShortcut:
     """POST /api/steam/shortcut"""
 
@@ -42,5 +46,22 @@ class TestSteamShortcut:
         resp = client.post("/api/steam/shortcut", json={
             "title": "Test Game",
             "action": "add",
+        })
+        assert resp.status_code == 422
+
+    def test_shortcut_missing_title_fails(self, client) -> None:
+        """Missing title returns 422."""
+        resp = client.post("/api/steam/shortcut", json={
+            "gameid": "test-game",
+            "action": "add",
+        })
+        assert resp.status_code == 422
+
+    def test_shortcut_invalid_action_fails(self, client) -> None:
+        """Invalid action returns 422."""
+        resp = client.post("/api/steam/shortcut", json={
+            "gameid": "test-game",
+            "title": "Test Game",
+            "action": "invalid",
         })
         assert resp.status_code == 422
