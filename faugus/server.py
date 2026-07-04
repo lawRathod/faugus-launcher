@@ -27,6 +27,7 @@ from faugus.api.logs import router as logs_router
 from faugus.api.envar import router as envar_router
 from faugus.api.backup import router as backup_router
 from faugus.api.system import router as system_router
+from faugus.api.ws import router as ws_router
 
 app = FastAPI(
     title="Faugus Launcher API",
@@ -56,6 +57,7 @@ app.include_router(logs_router)
 app.include_router(envar_router)
 app.include_router(backup_router)
 app.include_router(system_router)
+app.include_router(ws_router)
 
 # ── Static frontend (optional) ──────────────────────────────────────────
 try:
