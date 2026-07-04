@@ -57,3 +57,36 @@
 - Tests required per phase
 
 **File:** `.agents/plans/phased-migration-v2.md`
+
+### AD-004: Code-Reviewer Subagent
+
+**Context:** After implementing plans, code needs review before commit to catch bugs, security issues, and data model mismatches. Manual review is error-prone and inconsistent.
+
+**Decision:** Create `.pi/agents/code-reviewer.md` — a subagent that reviews git diffs before commit.
+
+**Key design choices:**
+- Uses `requesting-code-review` skill template as baseline
+- Reads every changed line in the diff — no shortcuts
+- Checks 8 dimensions: semantics, security, TDD compliance, upstream compat, architecture cohesion, file I/O, API contract, stale imports
+- Outputs severity-tagged issues (🔴 Critical / 🟡 Important / 🔵 Minor) + summary verdict
+- Read-only — never mutates the working tree
+
+**Result:** Caught 6 critical bugs and 4 important issues in the first Phase 1 commit that had already been pushed.
+
+### AD-005: Phase 0 + Phase 1 Complete
+
+**Context:** Phase 0 (Foundation) and Phase 1 (Backend API) of the phased migration plan have been implemented.
+
+**Phase 0 deliverables:**
+- `utils.py` split into pure + GTK modules (`gtk_utils.py`)
+- `runner_core.py` extracted from `runner.py` — zero GTK, usable headless
+- All 10 modules import correctly, 74 tests pass
+
+**Phase 1 deliverables:**
+- FastAPI server with 10 route modules covering ~30 endpoints
+- Games CRUD (12 endpoints), Config, Runners, Steam, Files, Logs, Env, Backup, System, WebSockets
+- File locking (`fcntl.flock`) on all read-modify-write operations
+- TDD throughout — 74 tests across 10 test files
+- code-reviewer invoked after each module, all issues fixed
+
+**Status:** Ready for Phase 2 (Web frontend).
