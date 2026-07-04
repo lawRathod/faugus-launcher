@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
 
 class Sidebar(QWidget):
     view_changed = Signal(str)
-    add_game_clicked = Signal()
     clear_recents_clicked = Signal()
 
     _NAV_ITEMS = [
@@ -99,20 +98,23 @@ class Sidebar(QWidget):
 
         # Add game
         btn_add = QPushButton("\u2795  Add Game")
+        btn_add.setCheckable(True)
         btn_add.setCursor(Qt.PointingHandCursor)
         btn_add.setProperty("class", "sidebar-btn")
-        btn_add.clicked.connect(self.add_game_clicked.emit)
+        btn_add.clicked.connect(lambda: self.set_view("add"))
         layout.addWidget(btn_add)
+        self.buttons["add"] = btn_add
+        self._nav_group.addButton(btn_add)
 
         # Settings
         btn_settings = QPushButton("\u2699  Settings")
+        btn_settings.setCheckable(True)
         btn_settings.setCursor(Qt.PointingHandCursor)
         btn_settings.setProperty("class", "sidebar-btn")
         btn_settings.clicked.connect(lambda: self.set_view("settings"))
         layout.addWidget(btn_settings)
 
         self.buttons["settings"] = btn_settings
-        btn_settings.setCheckable(True)
         self._nav_group.addButton(btn_settings)
 
         layout.addSpacing(4)
@@ -133,6 +135,12 @@ class Sidebar(QWidget):
         logger.debug("Sidebar.set_big_mode: is_big=%s", is_big)
         self._is_big = is_big
         self.setFixedWidth(230 if is_big else 160)
+
+    def clear_selection(self):
+        self._nav_group.setExclusive(False)
+        for btn in self._nav_group.buttons():
+            btn.setChecked(False)
+        self._nav_group.setExclusive(True)
 
     def set_view(self, view_name):
         logger.debug("Sidebar.set_view: view_name=%s", view_name)

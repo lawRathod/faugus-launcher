@@ -148,7 +148,6 @@ class MainWindow(QMainWindow):
         # Sidebar
         self.sidebar = Sidebar(is_big=is_big, show_sidebar=self.show_sidebar)
         self.sidebar.view_changed.connect(self._on_view_changed)
-        self.sidebar.add_game_clicked.connect(self._on_add_game)
         self.sidebar.clear_recents_clicked.connect(self._on_clear_recents)
         main_layout.addWidget(self.sidebar)
 
