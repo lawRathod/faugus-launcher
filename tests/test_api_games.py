@@ -4,6 +4,7 @@ Every test is written before the implementation code.
 """
 
 import json
+import subprocess as sp
 from pathlib import Path
 
 
@@ -276,22 +277,82 @@ class TestDeleteGame:
         assert resp.status_code == 404
 
 
+# ── Launch test helpers ──────────────────────────────────────────────
+
+
+def _echo_popen_factory():
+    """Return a Popen replacement that runs `echo launch-test`."""
+    orig = sp.Popen
+    return lambda cmd, *a, **kw: orig(["echo", "launch-test"], *a, **kw)
+
+
+def _sleep_popen_factory():
+    """Return a Popen replacement that runs `sleep 3600`."""
+    orig = sp.Popen
+    return lambda cmd, *a, **kw: orig(["sleep", "3600"], *a, **kw)
+
+
 class TestLaunchGame:
-    """POST /api/games/{gameid}/launch — depends on runner_core.py (Phase 0)"""
+    """POST /api/games/{gameid}/launch"""
 
     def test_launch_nonexistent(self, client) -> None:
         """Missing game → 404."""
         resp = client.post("/api/games/nonexistent/launch")
         assert resp.status_code == 404
 
+    def test_launch_existing(self, client, sample_game, games_path, monkeypatch) -> None:
+        """Existing game returns process_id and launching status."""
+        games_path.write_text(json.dumps([sample_game]))
+        monkeypatch.setattr(sp, "Popen", _echo_popen_factory())
+        resp = client.post("/api/games/test-game-1/launch")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data["process_id"], int)
+        assert data["process_id"] > 0
+        assert data["status"] == "launching"
+
+    def test_launch_records_pid(self, client, sample_game, games_path, monkeypatch, pm) -> None:
+        """After launch, the PID is recorded in running_games.json."""
+        games_path.write_text(json.dumps([sample_game]))
+        monkeypatch.setattr(sp, "Popen", _echo_popen_factory())
+        client.post("/api/games/test-game-1/launch")
+        with open(pm.running_games) as f:
+            running = json.load(f)
+        assert "test-game-1" in running
+        assert isinstance(running["test-game-1"], int)
+
+    def test_launch_rejects_double(self, client, sample_game, games_path, monkeypatch, pm) -> None:
+        """Launching an already-running game returns 409."""
+        games_path.write_text(json.dumps([sample_game]))
+        monkeypatch.setattr(sp, "Popen", _sleep_popen_factory())
+        resp1 = client.post("/api/games/test-game-1/launch")
+        assert resp1.status_code == 200
+        resp2 = client.post("/api/games/test-game-1/launch")
+        assert resp2.status_code == 409
+
 
 class TestKillGame:
-    """POST /api/games/{gameid}/kill — depends on runner_core.py (Phase 0)"""
+    """POST /api/games/{gameid}/kill"""
 
     def test_kill_nonexistent(self, client) -> None:
         """Missing game → 404."""
         resp = client.post("/api/games/nonexistent/kill")
         assert resp.status_code == 404
+
+    def test_kill_running(self, client, sample_game, games_path, monkeypatch, pm) -> None:
+        """Kill a game that was launched and verify cleanup."""
+        games_path.write_text(json.dumps([sample_game]))
+        monkeypatch.setattr(sp, "Popen", _sleep_popen_factory())
+        resp = client.post("/api/games/test-game-1/launch")
+        assert resp.status_code == 200
+        # Kill it
+        resp = client.post("/api/games/test-game-1/kill")
+        assert resp.status_code == 200
+        assert resp.json()["killed"] == "test-game-1"
+        # Verify cleanup
+        with open(pm.running_games) as f:
+            running = json.load(f)
+        assert "test-game-1" not in running
 
 
 class TestDuplicateGame:

@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import subprocess
 import time
 from contextlib import contextmanager
 from typing import Any, Iterator
@@ -30,6 +31,7 @@ from faugus.api.models import (
     GameUpdate,
 )
 from faugus import path_manager as pm
+from faugus.runner_core import build_launch_command
 from faugus.utils import format_title, save_json_file
 
 router = APIRouter()
@@ -358,25 +360,74 @@ def set_category(gameid: str, body: CategoryUpdate) -> dict:
 
 @router.post("/api/games/{gameid}/launch")
 def launch_game(gameid: str) -> dict:
-    """Launch a game via the UMU runner (stub — Phase 0)."""
+    """Launch a game via the UMU runner.
+
+    Builds the launch command using ``runner_core.build_launch_command``
+    and spawns the process.  The PID is recorded in
+    ``running_games.json`` for lifecycle tracking.  A daemon reaper
+    thread cleans up the entry when the process exits.
+    """
+    # Prevent double-launch
+    with _locked_running() as running:
+        if gameid in running:
+            raise HTTPException(409, f"Game '{gameid}' is already running.")
+
     with _locked_games() as games:
-        found = any(g.get("gameid") == gameid for g in games)
-    if not found:
+        game = None
+        for g in games:
+            if g.get("gameid") == gameid:
+                game = g
+                break
+    if game is None:
         raise HTTPException(404, "Game not found.")
-    return {"process_id": 0, "status": "error", "detail": "runner_core not implemented"}
+
+    command = build_launch_command(game)
+    cwd = None
+    game_dir = os.path.dirname(game.get("path", ""))
+    if game_dir and os.path.isdir(game_dir):
+        cwd = game_dir
+
+    proc = subprocess.Popen(command, shell=True, cwd=cwd)
+
+    with _locked_running() as running:
+        running[gameid] = proc.pid
+
+    # Daemon reaper — cleans up running_games.json when process exits
+    def _reaper(pid: int, gid: str) -> None:
+        try:
+            os.waitpid(pid, 0)
+        except (ChildProcessError, OSError):
+            try:
+                os.kill(pid, 0)
+            except OSError:
+                pass  # already dead
+        with _locked_running() as running:
+            running.pop(gid, None)
+
+    import threading
+    threading.Thread(target=_reaper, args=(proc.pid, gameid), daemon=True).start()
+
+    return {"process_id": proc.pid, "status": "launching"}
 
 
 @router.post("/api/games/{gameid}/kill")
 def kill_game(gameid: str) -> dict:
     """Kill a running game process."""
     with _locked_running() as running:
-        pid = running.pop(gameid, None)
+        pid = running.get(gameid)
         if pid is None:
             raise HTTPException(404, "Game not found or not running.")
         if not isinstance(pid, int):
             raise HTTPException(500, "Corrupted running_games.json: expected int PID")
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass  # already dead
-        return {"killed": gameid}
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass  # already dead
+    except Exception as exc:
+        raise HTTPException(500, f"Failed to kill process {pid}: {exc}")
+
+    with _locked_running() as running:
+        running.pop(gameid, None)
+
+    return {"killed": gameid}
