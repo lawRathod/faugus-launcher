@@ -128,4 +128,4 @@ def fix_steam_shortcuts():
 if __name__ == "__main__":
     fix_desktop_exec()
     fix_steam_shortcuts()
-    os.execv(sys.executable, [sys.executable, "-m", "faugus.runner", *sys.argv[1:]])
+    os.execv(sys.executable, [sys.executable, "-m", "faugus.runner_core", *sys.argv[1:]])

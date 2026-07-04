@@ -8,7 +8,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 from faugus.language_config import *
-from faugus.utils import on_entry_changed, load_red_entry_css
+from faugus.gtk_utils import on_entry_changed, load_red_entry_css
 
 def load_config(faugus_dir):
     config = {}

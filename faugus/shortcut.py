@@ -8,6 +8,7 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gtk, GdkPixbuf, GLib
 from faugus.utils import *
+from faugus.gtk_utils import *
 from faugus.config_manager import *
 from faugus.steam_setup import lossless_dll
 

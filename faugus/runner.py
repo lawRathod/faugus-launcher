@@ -16,8 +16,10 @@ from gi.repository import Gtk, Gdk, GLib
 from threading import Thread
 from faugus.config_manager import *
 from faugus.utils import *
+from faugus.gtk_utils import *
 from faugus.ea_fix import *
 from faugus.steam_setup import IS_STEAM_FLATPAK
+from faugus.runner_core import build_launch_command, load_game_from_json, set_env, _env_set as _runner_env_set
 
 if IS_FLATPAK:
     GLib.set_prgname("io.github.Faugus.faugus-launcher")
@@ -30,10 +32,8 @@ os.makedirs(compatibility_dir, exist_ok=True)
 
 _ = setup_gettext('faugus-run')
 
-_env_set = set()
-def set_env(key, value):
-    os.environ[key] = value
-    _env_set.add(key)
+# Re-export for backwards compat
+_env_set = _runner_env_set
 
 class FaugusRun(HiDpiMixin):
     def __init__(self, message, command=None):
@@ -785,116 +785,8 @@ class FaugusRun(HiDpiMixin):
             except:
                 pass
 
-def build_launch_command(game):
-    gameid = game.get("gameid", "")
-    path = game.get("path", "")
-    prefix = game.get("prefix", "")
-    launch_arguments = game.get("launch_arguments", "")
-    game_arguments = game.get("game_arguments", "")
-    protonfix = game.get("protonfix", "")
-    runner = game.get("runner", "")
-    addapp_bat = game.get("addapp_bat", "")
-    mangohud = game.get("mangohud", "")
-    gamemode = game.get("gamemode", "")
-    disable_hidraw = game.get("disable_hidraw", "")
-    prevent_sleep = game.get("prevent_sleep", "")
-    addapp_checkbox = game.get("addapp_checkbox", "")
-    lossless_enabled = game.get("lossless_enabled", "")
-    lossless_multiplier = game.get("lossless_multiplier", "")
-    lossless_flow = game.get("lossless_flow", "")
-    lossless_performance = game.get("lossless_performance", "")
-    lossless_hdr = game.get("lossless_hdr", "")
-    lossless_present = game.get("lossless_present", "")
-    icon = game.get("icon", "")
-
-    if gameid == "ea-app":
-        path = update_ea_path(prefix)
-
-    command_parts = []
-
-    if icon:
-        command_parts.append(f"SPLASHICON={icon}")
-    if gameid:
-        command_parts.append(f"LOG_DIR='{gameid}'")
-        command_parts.append(f"FAUGUSID={gameid}")
-    if disable_hidraw:
-        command_parts.append("PROTON_DISABLE_HIDRAW=1")
-    if prevent_sleep:
-        command_parts.append("PREVENT_SLEEP=1")
-    if protonfix:
-        command_parts.append(f"GAMEID={protonfix}")
-    if runner:
-        if runner == "Linux-Native":
-            command_parts.append('PROTONPATH=umu-sniper')
-        elif runner == "Proton-CachyOS (System)":
-            command_parts.append(f"WINEPREFIX={shlex.quote(prefix)}")
-            command_parts.append(f"PROTONPATH={proton_cachyos}")
-        else:
-            command_parts.append(f"WINEPREFIX={shlex.quote(prefix)}")
-            command_parts.append(f"PROTONPATH='{runner}'")
-    else:
-        command_parts.append(f"WINEPREFIX={shlex.quote(prefix)}")
-    command_parts.extend(build_lossless_env(lossless_enabled, lossless_multiplier, lossless_flow, lossless_performance, lossless_hdr, lossless_present))
-    if launch_arguments:
-        command_parts.append(os.path.expanduser(launch_arguments))
-    if gamemode and os.path.exists(gamemoderun):
-        command_parts.append("gamemoderun")
-    if mangohud and os.path.exists(mangohud_dir):
-        command_parts.append("mangohud")
-
-    if runner != "Steam":
-        command_parts.append(f"'{umu_run}'")
-
-    if addapp_checkbox == "addapp_enabled":
-        command_parts.append(shlex.quote(addapp_bat))
-    else:
-        if runner != "Steam":
-            command_parts.append(shlex.quote(path))
-        else:
-            steam_arguments = "-nobigpicture -nochatui -nofriendsui -silent -applaunch"
-            if IS_FLATPAK:
-                if IS_STEAM_FLATPAK:
-                    command_parts.append(f"flatpak-spawn --host flatpak run com.valvesoftware.Steam {steam_arguments} {path}")
-                else:
-                    command_parts.append(f"flatpak-spawn --host steam {steam_arguments} {path}")
-            else:
-                if IS_STEAM_FLATPAK:
-                    command_parts.append(f"flatpak run com.valvesoftware.Steam {steam_arguments} {path}")
-                else:
-                    command_parts.append(f"steam {steam_arguments} {path}")
-
-    if game_arguments:
-        command_parts.append(game_arguments)
-
-    return " ".join(command_parts)
-
-def load_game_from_json(gameid):
-    games = load_json_file(games_json, None)
-    if games is None:
-        return None
-
-    for game in games:
-        if game.get("gameid") == gameid:
-            return game
-
-    return None
-
-def is_apple_silicon():
-    path = "/proc/device-tree/compatible"
-
-    if not os.path.exists(path):
-        return False
-
-    try:
-        with open(path, "rb") as f:
-            dtcompat = f.read().decode('utf-8', errors='ignore')
-
-            if "apple,arm-platform" in dtcompat:
-                return True
-            else:
-                return False
-    except:
-        return False
+# build_launch_command, load_game_from_json, and is_apple_silicon
+# are imported from faugus.runner_core (Phase 0.2 refactor).
 
 def main():
     if is_apple_silicon() and 'FAUGUS_MUVM' not in os.environ:
