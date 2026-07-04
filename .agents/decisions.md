@@ -32,3 +32,28 @@
 - Key challenges: file picker, system tray, splash screen, flatpak, gamepad
 
 **Decision:** No action taken yet — research saved for future implementation.
+
+### AD-003: Phased Migration Plan v2
+
+**Context:** The initial monolithic migration plan was reviewed by the `plan-critic` subagent and found to have 3 blocker-level issues (scope too large, non-UI logic in removed files unaccounted for, `faugus-run` entry point broken), plus 4 warnings and 4 suggestions.
+
+**Decision:** Adopt the phased approach in `.agents/plans/phased-migration-v2.md`.
+
+**5 Phases:**
+- **Phase 0:** Foundation — split `utils.py`, extract `runner_core.py`, file locking, `faugus_run.py` survival path. Zero behavior change.
+- **Phase 1:** Backend API — FastAPI server with ~30 endpoints, 9 router files, WebSocket support, entry point update.
+- **Phase 2:** Basic frontend — Svelte/React SPA with game library, add/edit forms, launch flow.
+- **Phase 3:** Settings + remaining features — settings page, file browser, Steam, Proton manager, backup, logs.
+- **Phase 4:** Polish — system tray, gamepad, keyboard, flatpak, packaging.
+
+**Key changes from v1:**
+- Each phase is independently shippable and revertable
+- Files marked "REMOVED" in v1 are now properly extracted first (Phase 0)
+- `faugus-run` is preserved as a headless path independent of the server
+- WebSocket replaces polling for real-time communication
+- File locking added for concurrent-safe `games.json` access
+- Shutdown/reboot API endpoints dropped (security)
+- TypeScript mandated for type-safe SPA
+- Tests required per phase
+
+**File:** `.agents/plans/phased-migration-v2.md`
