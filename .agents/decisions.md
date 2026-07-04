@@ -83,10 +83,12 @@
 - All 10 modules import correctly, 74 tests pass
 
 **Phase 1 deliverables:**
-- FastAPI server with 10 route modules covering ~30 endpoints
-- Games CRUD (12 endpoints), Config, Runners, Steam, Files, Logs, Env, Backup, System, WebSockets
+- FastAPI server with 10 route modules covering 30 endpoints
+- All stubs wired: game launch (runner_core), file uploads (multipart),
+  Steam shortcuts (VDF), runner versions (GitHub API), backup restore
+  (ZIP), WebSocket log streaming
 - File locking (`fcntl.flock`) on all read-modify-write operations
-- TDD throughout — 74 tests across 10 test files
+- TDD throughout — 90 tests across 12 test files
 - code-reviewer invoked after each module, all issues fixed
 
-**Status:** Ready for Phase 2 (Web frontend).
+**Status:** Phase 1 complete. Ready for Phase 2 (Web frontend).

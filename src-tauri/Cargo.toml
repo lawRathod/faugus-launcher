@@ -1,0 +1,21 @@
+[package]
+name = "faugus-launcher"
+version = "1.22.7"
+description = "Faugus Launcher — native desktop app for managing Windows games"
+authors = ["Faugus"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2" }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
