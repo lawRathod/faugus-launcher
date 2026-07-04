@@ -22,6 +22,11 @@ from faugus.api.games import router as games_router
 from faugus.api.config import router as config_router
 from faugus.api.runners import router as runners_router
 from faugus.api.steam import router as steam_router
+from faugus.api.files import router as files_router
+from faugus.api.logs import router as logs_router
+from faugus.api.envar import router as envar_router
+from faugus.api.backup import router as backup_router
+from faugus.api.system import router as system_router
 
 app = FastAPI(
     title="Faugus Launcher API",
@@ -46,6 +51,11 @@ app.include_router(games_router)
 app.include_router(config_router)
 app.include_router(runners_router)
 app.include_router(steam_router)
+app.include_router(files_router)
+app.include_router(logs_router)
+app.include_router(envar_router)
+app.include_router(backup_router)
+app.include_router(system_router)
 
 # ── Static frontend (optional) ──────────────────────────────────────────
 try:
