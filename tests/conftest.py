@@ -95,7 +95,13 @@ def sample_game() -> dict:
 
 @pytest.fixture
 def client(pm) -> TestClient:
-    """Starlette TestClient, isolated from real config."""
-    # Must import after path_manager is patched
+    """Starlette TestClient, isolated from real config.
+
+    Reloads ``config_manager`` in addition to ``path_manager`` so that
+    the config_file_dir path is correctly set to the test temp directory.
+    """
+    import faugus.config_manager as cm
+    import importlib
+    importlib.reload(cm)
     from faugus.server import app
     return TestClient(app)
