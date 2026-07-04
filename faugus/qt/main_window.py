@@ -123,6 +123,11 @@ class MainWindow(QMainWindow):
         self._timer.timeout.connect(self._check_running)
         self._timer.start(1000)
 
+        # Gamepad support
+        self._gamepad = None
+        if self.cfg.gamepad_navigation:
+            self._init_gamepad()
+
         # Window size
         if cfg.window_behavior == "Remember":
             self.resize(cfg.width, cfg.height)
@@ -241,6 +246,18 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.btn_kill)
         layout.addSpacing(4)
         layout.addWidget(self.btn_play)
+
+        # Gamepad indicator
+        self.gamepad_indicator = QLabel()
+        self.gamepad_indicator.setFixedSize(24, 24)
+        self.gamepad_indicator.setAlignment(Qt.AlignCenter)
+        self.gamepad_indicator.setToolTip("No gamepad detected")
+        self.gamepad_indicator.setStyleSheet(
+            "color: rgba(200, 184, 224, 0.2); font-size: 16px;"
+            " background: transparent; border: none;"
+        )
+        self.gamepad_indicator.setText("\U0001f3ae")
+        layout.addWidget(self.gamepad_indicator)
 
         layout.addStretch()
 
@@ -824,6 +841,29 @@ class MainWindow(QMainWindow):
         self._load_games()
         self.sidebar.set_view("library")
 
+    def _init_gamepad(self):
+        try:
+            from faugus.qt.gamepad import GamepadManager
+            self._gamepad = GamepadManager(self)
+            self._gamepad.gamepad_connected.connect(self._on_gamepad_connected)
+            logger.debug("Gamepad initialized")
+        except Exception as e:
+            logger.debug("Failed to init gamepad: %s", e)
+
+    def _on_gamepad_connected(self, connected):
+        if connected:
+            self.gamepad_indicator.setStyleSheet(
+                "color: #a78bfa; font-size: 16px;"
+                " background: transparent; border: none;"
+            )
+            self.gamepad_indicator.setToolTip("Gamepad connected")
+        else:
+            self.gamepad_indicator.setStyleSheet(
+                "color: rgba(200, 184, 224, 0.2); font-size: 16px;"
+                " background: transparent; border: none;"
+            )
+            self.gamepad_indicator.setToolTip("No gamepad detected")
+
     def _on_settings_changed(self):
         logger.debug("MainWindow._on_settings_changed: interface_mode=%s, show_categories=%s",
                      self.cfg.interface_mode, self.cfg.show_categories)
@@ -834,6 +874,8 @@ class MainWindow(QMainWindow):
         self.sidebar.setVisible(self.show_sidebar)
         is_big = self.interface_mode in ("Blocks", "Banners")
         self.sidebar.set_big_mode(is_big)
+        if self.cfg.gamepad_navigation and not self._gamepad:
+            self._init_gamepad()
 
     # ------------------------------------------------------------------ #
     # Window close                                                         #
