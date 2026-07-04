@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 from faugus.api.games import router as games_router
 from faugus.api.config import router as config_router
+from faugus.api.runners import router as runners_router
 
 app = FastAPI(
     title="Faugus Launcher API",
@@ -42,6 +43,7 @@ app.add_middleware(
 # ── Routers ─────────────────────────────────────────────────────────────
 app.include_router(games_router)
 app.include_router(config_router)
+app.include_router(runners_router)
 
 # ── Static frontend (optional) ──────────────────────────────────────────
 try:
