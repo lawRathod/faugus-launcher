@@ -1,0 +1,7 @@
+# Ignore everything in this directory by default
+/*
+
+# But track these files
+!/README.md
+!/decisions.md
+!/.gitignore
