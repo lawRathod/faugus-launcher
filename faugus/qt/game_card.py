@@ -71,6 +71,10 @@ class GameCard(QWidget):
         self._image_label = QLabel()
         self._image_label.setAlignment(Qt.AlignCenter)
         self._image_label.setMouseTracking(True)
+        self._image_label.setStyleSheet(
+            "QLabel { border-top-left-radius: 14px; border-top-right-radius: 14px;"
+            " border-bottom-left-radius: 0px; border-bottom-right-radius: 0px; }"
+        )
 
         self._title_label = QLabel(game.title)
         self._title_label.setAlignment(Qt.AlignCenter)
@@ -101,11 +105,11 @@ class GameCard(QWidget):
         # Selection frame
         self._sel_frame = QWidget(self)
         self._sel_frame.setStyleSheet(
-            "background: transparent; border: 2px solid rgba(167, 139, 250, 0.7);"
+            "background: transparent; border: 3px solid rgba(167, 139, 250, 0.9);"
             " border-radius: 14px;"
         )
+        self._sel_frame.setAttribute(Qt.WA_TransparentForMouseEvents, True)
         self._sel_frame.hide()
-        self._sel_frame.setMouseTracking(True)
 
         # Favorite button — created last so it's on top in z-order
         self._fav_btn = QPushButton(self)
@@ -338,11 +342,13 @@ class GameCard(QWidget):
     def focusInEvent(self, event):
         logger.debug("GameCard.focusInEvent: game=%s", self.game.title)
         super().focusInEvent(event)
+        self._sel_frame.show()
         self.update()
 
     def focusOutEvent(self, event):
         logger.debug("GameCard.focusOutEvent: game=%s", self.game.title)
         super().focusOutEvent(event)
+        self._sel_frame.hide()
         self.update()
 
     # ---- Helpers ----

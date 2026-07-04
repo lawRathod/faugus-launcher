@@ -33,6 +33,10 @@ def get_stylesheet():
             font-weight: 500;
             text-align: left;
         }
+        .sidebar QPushButton:focus {
+            background: rgba(138, 92, 246, 0.1);
+            color: rgba(224, 216, 240, 0.95);
+        }
         .sidebar QPushButton:hover {
             background: rgba(138, 92, 246, 0.08);
             color: rgba(224, 216, 240, 0.95);
@@ -188,19 +192,35 @@ def get_stylesheet():
 
         /* -- Menus ------------------------------------ */
         QMenu {
-            background: rgba(20, 14, 36, 0.97);
-            color: #e8e0f0;
-            border: 1px solid rgba(138, 92, 246, 0.12);
+            background: rgba(18, 12, 30, 0.98);
+            color: rgba(224, 216, 240, 0.85);
+            border: 1px solid rgba(138, 92, 246, 0.15);
             border-radius: 10px; padding: 6px;
         }
         QMenu::item {
-            padding: 9px 28px; border-radius: 6px; font-size: 14px;
+            padding: 8px 20px; border-radius: 6px;
+            font-size: 13px; font-weight: 500;
+            margin: 2px 4px;
         }
         QMenu::item:selected {
-            background: rgba(138, 92, 246, 0.15);
+            background: rgba(138, 92, 246, 0.12);
+            color: #ffffff;
+        }
+        QMenu::item:disabled {
+            color: rgba(200, 184, 224, 0.25);
         }
         QMenu::separator {
-            height: 1px; background: rgba(138, 92, 246, 0.08); margin: 4px 10px;
+            height: 1px;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 transparent, stop:0.5 rgba(138, 92, 246, 0.12), stop:1 transparent);
+            margin: 5px 12px;
+        }
+        QMenu::indicator {
+            width: 14px; height: 14px;
+            margin-left: 4px;
+        }
+        QMenu::right-arrow {
+            width: 12px; height: 12px;
         }
 
         /* -- Tabs ------------------------------------- */

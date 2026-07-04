@@ -119,6 +119,74 @@ class FlowLayout(QLayout):
         logger.debug("FlowLayout.items: count=%s", len(self._items))
         return list(self._items)
 
+    def _build_grid(self):
+        """Build a 2D grid of items based on their layout positions."""
+        logger.debug("FlowLayout._build_grid: item_count=%s", len(self._items))
+        if not self._items:
+            return []
+        rows = []
+        current_row = []
+        current_y = None
+        for item in self._items:
+            geo = item.geometry()
+            if geo.isNull() or (geo.width() == 0 and geo.height() == 0):
+                continue
+            if current_y is None:
+                current_y = geo.y()
+            if abs(geo.y() - current_y) < 5:
+                current_row.append(item)
+            else:
+                if current_row:
+                    rows.append(current_row)
+                current_row = [item]
+                current_y = geo.y()
+        if current_row:
+            rows.append(current_row)
+        return rows
+
+    def grid_size(self):
+        """Return (rows, cols) of the current layout grid."""
+        rows = self._build_grid()
+        if not rows:
+            return (0, 0)
+        return (len(rows), max(len(r) for r in rows))
+
+    def index_below(self, index):
+        """Return the index of the item directly below the given index, or None."""
+        rows = self._build_grid()
+        if not rows:
+            return None
+        count = 0
+        for r, row in enumerate(rows):
+            for c, item in enumerate(row):
+                if count == index:
+                    if r + 1 < len(rows) and c < len(rows[r + 1]):
+                        target = 0
+                        for pr in range(r + 1):
+                            target += len(rows[pr])
+                        return target + c
+                    return None
+                count += 1
+        return None
+
+    def index_above(self, index):
+        """Return the index of the item directly above the given index, or None."""
+        rows = self._build_grid()
+        if not rows:
+            return None
+        count = 0
+        for r, row in enumerate(rows):
+            for c, item in enumerate(row):
+                if count == index:
+                    if r > 0 and c < len(rows[r - 1]):
+                        target = 0
+                        for pr in range(r - 1):
+                            target += len(rows[pr])
+                        return target + c
+                    return None
+                count += 1
+        return None
+
     def _do_layout(self, rect, test_only):
         logger.debug("FlowLayout._do_layout: rect=%s, test_only=%s, item_count=%s", rect, test_only, len(self._items))
         m = self.contentsMargins()
