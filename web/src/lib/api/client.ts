@@ -185,6 +185,14 @@ export async function uploadBanner(
   return formRequest("/api/files/banner", fd);
 }
 
+export function getIconUrl(gameid: string): string {
+  return `/api/files/icon/${gameid}`;
+}
+
+export function getBannerUrl(gameid: string): string {
+  return `/api/files/banner/${gameid}`;
+}
+
 export async function suggestPrefix(
   title: string
 ): Promise<{ prefix: string }> {

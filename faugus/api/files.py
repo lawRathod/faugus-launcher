@@ -105,6 +105,31 @@ def upload_banner(
     return {"path": path}
 
 
+@router.get("/api/files/icon/{gameid}")
+def get_icon(gameid: str) -> "fastapi.responses.FileResponse":
+    """Serve a game icon file."""
+    from faugus.path_manager import icons_dir
+    import fastapi.responses as r
+    # Try .png first, fall back to .ico
+    for ext in (".png", ".ico"):
+        path = os.path.join(icons_dir, f"{gameid}{ext}")
+        if os.path.isfile(path):
+            return r.FileResponse(path)
+    return r.Response(status_code=404)
+
+
+@router.get("/api/files/banner/{gameid}")
+def get_banner(gameid: str) -> "fastapi.responses.FileResponse":
+    """Serve a game banner file."""
+    from faugus.path_manager import banners_dir
+    import fastapi.responses as r
+    path = os.path.join(banners_dir, f"{gameid}.png")
+    if os.path.isfile(path):
+        return r.FileResponse(path)
+    # Return default banner
+    return r.Response(status_code=404)
+
+
 @router.get("/api/files/prefix-suggest")
 def prefix_suggest(title: str = Query(...)) -> dict:
     """Suggest a prefix path for a game title."""

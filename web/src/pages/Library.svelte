@@ -24,16 +24,8 @@
   let viewMode = $state<"list" | "blocks" | "banners">("list");
   let searchQuery = $state("");
   let sortMode = $state("alpha");
-  let categoryFilter = $state("all");
   let runningGames = $state<Record<string, number>>({});
-  let categories = $state<string[]>([]);
 
-  $effect(() => {
-    // Derive categories from games
-    const catSet = new Set<string>();
-    games.forEach(g => (g.category ?? []).forEach(c => catSet.add(c)));
-    categories = [...catSet].sort();
-  });
 
   // Poll running games
   $effect(() => {
@@ -49,13 +41,7 @@
     let result = games;
     const q = searchQuery.toLowerCase();
     if (q) result = result.filter(g => g.title.toLowerCase().includes(q));
-    if (categoryFilter && categoryFilter !== "all") {
-      if (categoryFilter === "_uncategorized") {
-        result = result.filter(g => !g.category || g.category.length === 0);
-      } else {
-        result = result.filter(g => g.category?.includes(categoryFilter));
-      }
-    }
+
     if (sortMode === "alpha") {
       result = [...result].sort((a, b) => a.title.localeCompare(b.title));
     } else if (sortMode === "playtime") {
@@ -110,24 +96,7 @@
 </script>
 
 <div class="flex h-full">
-  <!-- Category sidebar -->
-  <aside class="w-48 bg-surface-900 border-r border-surface-800 p-3 flex flex-col gap-1 shrink-0 overflow-y-auto">
-    <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-2">Categories</h3>
-    <button
-      class="text-left px-2 py-1.5 rounded text-sm transition-colors {categoryFilter === 'all' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-surface-800'}"
-      onclick={() => (categoryFilter = "all")}
-    >All <span class="text-gray-600 text-xs ml-1">({games.length})</span></button>
-    <button
-      class="text-left px-2 py-1.5 rounded text-sm transition-colors {categoryFilter === '_uncategorized' ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-surface-800'}"
-      onclick={() => (categoryFilter = "_uncategorized")}
-    >Uncategorized</button>
-    {#each categories as cat}
-      <button
-        class="text-left px-2 py-1.5 rounded text-sm transition-colors {categoryFilter === cat ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-surface-800'}"
-        onclick={() => (categoryFilter = cat)}
-      >{cat}</button>
-    {/each}
-  </aside>
+  <!-- Category sidebar removed -->
 
   <!-- Main area -->
   <div class="flex-1 flex flex-col overflow-hidden">

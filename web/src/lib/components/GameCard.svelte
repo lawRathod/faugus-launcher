@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { GameResponse } from "../api/types";
-  import { deleteGame, launchGame, killGame, getRunningGames } from "../api/client";
+  import { deleteGame, launchGame, killGame, getRunningGames, getIconUrl, getBannerUrl } from "../api/client";
 
   let { game, mode, onrefresh }: {
     game: GameResponse;
@@ -53,8 +53,9 @@
     return `${h}h ${m}m`;
   }
 
-  // Default icon — use $state to track reactivity
-  let iconUrl = $derived(game.icon || "/favicon.svg");
+  // Icon/banner served via API
+  let iconUrl = $derived(getIconUrl(game.gameid));
+  let bannerUrl = $derived(getBannerUrl(game.gameid));
 
   function closeContext() {
     contextOpen = false;
@@ -102,7 +103,7 @@
 
   {:else if mode === "banners"}
     <div class="flex flex-col items-center gap-1 w-36">
-      <img src={game.banner || iconUrl} alt="" class="w-36 h-52 rounded object-cover" />
+      <img src={bannerUrl} alt="" class="w-36 h-52 rounded object-cover" onerror={(e) => { e.currentTarget.src = iconUrl; }} />
       <div class="text-xs text-center font-medium leading-tight line-clamp-2 px-1">{game.title}</div>
       <button
         class="px-3 py-1 rounded text-xs font-medium {running ? 'bg-red-700 hover:bg-red-600' : 'bg-blue-700 hover:bg-blue-600'} text-white"
