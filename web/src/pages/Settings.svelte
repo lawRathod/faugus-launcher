@@ -69,7 +69,7 @@
   <div class="flex items-center gap-3 px-4 py-2.5 border-b border-surface-800 bg-surface-900/50 shrink-0">
     <button class="p-1.5 rounded-lg hover:bg-surface-800 text-gray-400" onclick={onback}><ArrowLeft size={18} /></button>
     <h2 class="text-lg font-bold">Settings</h2>
-    <div class="flex-1" />
+    <div class="flex-1"></div>
     <button class="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium disabled:opacity-50" disabled={saving} onclick={save}>
       <Save size={16} /> {saving ? "Saving..." : "Save"}
     </button>

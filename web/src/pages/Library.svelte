@@ -135,7 +135,7 @@
     <!-- Game grid -->
     <div class="flex-1 overflow-y-auto p-4">
       {#if loading}
-        <div class="flex items-center justify-center h-full"><div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div class="flex items-center justify-center h-full"><div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
       {:else if filtered.length === 0}
         <div class="flex flex-col items-center justify-center h-full text-gray-500 gap-2">
           <Gamepad2 size={48} class="text-gray-700" />

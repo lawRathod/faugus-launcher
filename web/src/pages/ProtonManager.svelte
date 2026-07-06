@@ -38,7 +38,7 @@
   <div class="flex items-center gap-3 px-4 py-2.5 border-b border-surface-800 bg-surface-900/50 shrink-0">
     <button class="p-1.5 rounded-lg hover:bg-surface-800 text-gray-400" onclick={onback}><ArrowLeft size={18} /></button>
     <h2 class="text-lg font-bold">Proton Manager</h2>
-    <div class="flex-1" />
+    <div class="flex-1"></div>
   </div>
 
   <div class="flex gap-0 px-4 bg-surface-900 border-b border-surface-800 overflow-x-auto">
@@ -49,7 +49,7 @@
 
   <div class="flex-1 overflow-y-auto p-4">
     {#if loading}
-      <div class="flex items-center justify-center h-full"><div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
+      <div class="flex items-center justify-center h-full"><div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
     {:else}
       <div class="max-w-2xl">
         <div class="flex items-center gap-3 mb-4">

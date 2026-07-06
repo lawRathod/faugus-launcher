@@ -67,10 +67,7 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
 <div
-  class="relative group cursor-pointer rounded-xl border border-surface-700 overflow-hidden"
-  class:game-card={mode !== "banners"}
-  class:game-card-banner={mode === "banners"}
-  class:bg-surface-card
+  class={"relative group cursor-pointer rounded-xl border border-surface-700 overflow-hidden bg-surface-card" + (mode !== "banners" ? " game-card" : "") + (mode === "banners" ? " game-card-banner" : "")}
   onclick={() => contextOpen = !contextOpen}
   onmouseleave={closeContext}
   role="button"
