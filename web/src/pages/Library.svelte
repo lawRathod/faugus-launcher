@@ -185,22 +185,7 @@
           class:grid-cols-4={viewMode === "banners"}
         >
           {#each filtered as game (game.gameid)}
-            <GameCard
-              {game}
-              mode={viewMode}
-              isRunning={game.gameid in runningGames}
-              onplay={async () => {
-                if (game.gameid in runningGames) {
-                  await api.killGame(game.gameid);
-                  toast.success("Game stopped");
-                } else {
-                  await api.launchGame(game.gameid);
-                  toast.success("Launching...");
-                }
-                onrefresh();
-              }}
-              oncontext={(e) => openContext(game, e)}
-            />
+            <GameCard {game} mode={viewMode} onrefresh />
           {/each}
         </div>
       {/if}
