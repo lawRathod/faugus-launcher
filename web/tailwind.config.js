@@ -5,18 +5,18 @@ export default {
     extend: {
       colors: {
         surface: {
-          base:   "var(--surface-base)",
+          base:    "var(--surface-base)",
           elevated: "var(--surface-elevated)",
-          card:   "var(--surface-card)",
-          border: "var(--surface-border)",
-          hover:  "var(--surface-hover)",
+          card:    "var(--surface-card)",
+          border:  "var(--surface-border)",
+          hover:   "var(--surface-hover)",
+          // Legacy numeric aliases for compatibility
+          950: "var(--surface-base)",
+          900: "var(--surface-elevated)",
+          800: "var(--surface-card)",
+          700: "var(--surface-border)",
+          600: "var(--surface-hover)",
         },
-        // Keep legacy surface-XXX aliases for compatibility
-        950: "var(--surface-base)",
-        900: "var(--surface-elevated)",
-        800: "var(--surface-card)",
-        700: "var(--surface-border)",
-        600: "var(--surface-hover)",
       },
       textColor: {
         white: "var(--text-primary)",
