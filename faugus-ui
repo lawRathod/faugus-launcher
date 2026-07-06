@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────
 # Faugus Launcher — one-command dev entry point
-# Starts the Python API server in the background, waits for it
-# to be ready, then launches the Tauri native window.
+# Kills stale ports, starts the Python API server, pipes logs
+# to a file, then launches the Tauri native window.
 # ─────────────────────────────────────────────────────────────
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+LOG_DIR="$SCRIPT_DIR/.agents/logs"
+mkdir -p "$LOG_DIR"
+SERVER_LOG="$LOG_DIR/server.log"
+VITE_LOG="$LOG_DIR/vite.log"
+
 # Find Python
 PYTHON=""
 for p in python3 python; do
   if command -v "$p" &>/dev/null; then
-    # Prefer .venv if it exists
     if [ -f "$SCRIPT_DIR/.venv/bin/$p" ]; then
       PYTHON="$SCRIPT_DIR/.venv/bin/$p"
     else
@@ -28,45 +32,65 @@ if [ -z "$PYTHON" ]; then
   exit 1
 fi
 
-echo "🚀 Starting Faugus Launcher..."
+echo "🚀 Faugus Launcher"
 echo "   Python: $PYTHON"
+echo "   Logs:   $SERVER_LOG"
 
-# Start the API server in background
-$PYTHON -m faugus.server --port 9876 &
+# ── Kill anything on our ports ────────────────────────────────
+kill_port() {
+  local port=$1 name=$2
+  local pid
+  pid=$(lsof -ti ":$port" 2>/dev/null || true)
+  if [ -n "$pid" ]; then
+    echo "   Killing stale $name (pid $pid on port $port)"
+    kill "$pid" 2>/dev/null || true
+    sleep 0.3
+    # Force if still alive
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+}
+
+kill_port 9876 "Python server"
+kill_port 5173 "Vite dev server"
+
+# ── Start the API server ───────────────────────────────────────
+> "$SERVER_LOG"
+$PYTHON -m faugus.server --port 9876 >> "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
+echo "   Server pid $SERVER_PID"
 
-# Wait for the server to be ready
-echo "   Waiting for API server..."
-for i in $(seq 1 30); do
+# Wait for it to be ready
+for i in $(seq 1 15); do
   if curl -s http://127.0.0.1:9876/api/system/status >/dev/null 2>&1; then
-    echo "   ✅ API server ready (pid $SERVER_PID)"
+    echo "   ✅ API ready"
     break
   fi
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    echo "   ❌ API server failed to start"
+    echo "   ❌ Server failed to start — check $SERVER_LOG"
+    cat "$SERVER_LOG"
     exit 1
   fi
   sleep 0.5
 done
 
-# Cleanup on exit
+# ── Cleanup on exit ────────────────────────────────────────────
 cleanup() {
+  echo ""
   echo "   Shutting down..."
   kill "$SERVER_PID" 2>/dev/null || true
   wait "$SERVER_PID" 2>/dev/null || true
-  echo "   Done."
+  echo "   Done. Logs at $SERVER_LOG"
 }
 trap cleanup EXIT INT TERM
 
-# Launch Tauri (or fall back to browser)
+# ── Launch Tauri ───────────────────────────────────────────────
 if command -v ./web/node_modules/.bin/tauri &>/dev/null; then
-  echo "   🪟 Launching Tauri native window..."
+  echo "   🪟 Launching Tauri..."
   echo ""
-  ./web/node_modules/.bin/tauri dev
+  # Vite output goes to its own log
+  ./web/node_modules/.bin/tauri dev > "$VITE_LOG" 2>&1
 else
-  echo "   🌐 Tauri CLI not found, opening browser instead..."
-  echo "   Install Tauri CLI: cd web && npm install"
-  echo ""
+  echo "   🌐 No Tauri CLI — opening browser instead"
   $PYTHON -m webbrowser "http://localhost:9876"
   wait "$SERVER_PID"
 fi
