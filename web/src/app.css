@@ -10,27 +10,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-/* ── Dropdown option styling ────────────────────────────────── */
+/* ── Dropdown styling ────────────────────────────────────────── */
 select {
   -webkit-appearance: none;
   appearance: none;
@@ -39,32 +26,25 @@ select {
   background-position: right 8px center;
   padding-right: 28px !important;
 }
+select option { background: #1e293b; color: #e2e8f0; }
 
-select option {
-  background: #1e293b;
-  color: #e2e8f0;
-}
-
-/* ── Theme toggle ────────────────────────────────────────────── */
-html.dim {
-  --bg-primary: #f1f5f9;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #e2e8f0;
-  --border-color: #cbd5e1;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-}
-
-html:not(.dim) {
-  --bg-primary: #020617;
-  --bg-secondary: #0f172a;
-  --bg-tertiary: #1e293b;
-  --border-color: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-}
-
-body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
+/* ── Dim theme overrides ─────────────────────────────────────────
+   Uses higher specificity (.dim parent) to override Tailwind's
+   hardcoded surface-* classes at runtime.                     */
+html.dim .bg-surface-950,
+html.dim .bg-surface-950\/50 { background-color: #f8fafc !important; }
+html.dim .bg-surface-900,
+html.dim .bg-surface-900\/50 { background-color: #ffffff !important; }
+html.dim .bg-surface-800 { background-color: #f1f5f9 !important; }
+html.dim .bg-surface-700 { background-color: #e2e8f0 !important; }
+html.dim .border-surface-800 { border-color: #cbd5e1 !important; }
+html.dim .border-surface-700 { border-color: #cbd5e1 !important; }
+html.dim .text-white { color: #0f172a !important; }
+html.dim .text-gray-400 { color: #475569 !important; }
+html.dim .text-gray-500 { color: #64748b !important; }
+html.dim .text-gray-300 { color: #334155 !important; }
+html.dim .text-gray-200 { color: #1e293b !important; }
+html.dim .hover\:bg-surface-800:hover { background-color: #e2e8f0 !important; }
+html.dim .hover\:bg-surface-700:hover { background-color: #cbd5e1 !important; }
+html.dim .hover\:text-white:hover { color: #0f172a !important; }
+html.dim select option { background: #ffffff; color: #0f172a; }
