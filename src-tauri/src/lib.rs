@@ -1,30 +1,26 @@
+use std::process::Command;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
     Manager,
 };
 
-/// Spawn the Python backend server as a sidecar process.
-/// Falls back gracefully if the sidecar binary isn't bundled yet (dev mode).
-fn spawn_sidecar(app: &tauri::AppHandle) {
-    use tauri_plugin_shell::ShellExt;
-    let shell = app.shell();
-
-    // The sidecar binary is bundled as `bin/faugus-server` by PyInstaller.
-    // In dev mode (no binary), we just log a message — user runs server separately.
-    match shell.sidecar("faugus-server") {
-        Ok(sidecar_command) => {
-            match sidecar_command.spawn() {
-                Ok((_rx, _child)) => {
-                    eprintln!("Python sidecar started");
-                }
-                Err(e) => {
-                    eprintln!("Could not start sidecar (expected in dev mode): {}", e);
-                }
-            }
+fn spawn_python_server() {
+    let python = if cfg!(target_os = "windows") { "python" } else { "python3" };
+    match Command::new(python)
+        .args(["-m", "faugus.server", "--port", "9876"])
+        .spawn()
+    {
+        Ok(child) => {
+            eprintln!("[faugus] Python server started (pid {})", child.id());
+            // Leak the child so it keeps running after this function returns.
+            // When Tauri exits, the orphaned process will be cleaned up
+            // by the OS or can be killed manually.
+            std::mem::forget(child);
         }
         Err(e) => {
-            eprintln!("Sidecar binary not found (expected in dev mode): {}", e);
+            eprintln!("[faugus] Failed to start Python server: {}", e);
+            eprintln!("[faugus] Start it manually: python3 -m faugus.server");
         }
     }
 }
@@ -34,8 +30,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
-            // Spawn Python backend
-            spawn_sidecar(app.handle());
+            spawn_python_server();
 
             // System tray
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
@@ -51,12 +46,9 @@ pub fn run() {
                 .tooltip("Faugus Launcher")
                 .build(app)?;
 
-            // Handle tray menu events
             app.on_menu_event(move |app_handle, event| {
                 match event.id().as_ref() {
-                    "quit" => {
-                        app_handle.exit(0);
-                    }
+                    "quit" => app_handle.exit(0),
                     "show" => {
                         if let Some(window) = app_handle.get_webview_window("main") {
                             window.show().ok();

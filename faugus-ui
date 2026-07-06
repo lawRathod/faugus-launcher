@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────
+# Faugus Launcher — one-command dev entry point
+# Starts the Python API server in the background, waits for it
+# to be ready, then launches the Tauri native window.
+# ─────────────────────────────────────────────────────────────
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Find Python
+PYTHON=""
+for p in python3 python; do
+  if command -v "$p" &>/dev/null; then
+    # Prefer .venv if it exists
+    if [ -f "$SCRIPT_DIR/.venv/bin/$p" ]; then
+      PYTHON="$SCRIPT_DIR/.venv/bin/$p"
+    else
+      PYTHON="$(command -v "$p")"
+    fi
+    break
+  fi
+done
+
+if [ -z "$PYTHON" ]; then
+  echo "Error: Python not found"
+  exit 1
+fi
+
+echo "🚀 Starting Faugus Launcher..."
+echo "   Python: $PYTHON"
+
+# Start the API server in background
+$PYTHON -m faugus.server --port 9876 &
+SERVER_PID=$!
+
+# Wait for the server to be ready
+echo "   Waiting for API server..."
+for i in $(seq 1 30); do
+  if curl -s http://127.0.0.1:9876/api/system/status >/dev/null 2>&1; then
+    echo "   ✅ API server ready (pid $SERVER_PID)"
+    break
+  fi
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "   ❌ API server failed to start"
+    exit 1
+  fi
+  sleep 0.5
+done
+
+# Cleanup on exit
+cleanup() {
+  echo "   Shutting down..."
+  kill "$SERVER_PID" 2>/dev/null || true
+  wait "$SERVER_PID" 2>/dev/null || true
+  echo "   Done."
+}
+trap cleanup EXIT INT TERM
+
+# Launch Tauri (or fall back to browser)
+if command -v ./web/node_modules/.bin/tauri &>/dev/null; then
+  echo "   🪟 Launching Tauri native window..."
+  echo ""
+  ./web/node_modules/.bin/tauri dev
+else
+  echo "   🌐 Tauri CLI not found, opening browser instead..."
+  echo "   Install Tauri CLI: cd web && npm install"
+  echo ""
+  $PYTHON -m webbrowser "http://localhost:9876"
+  wait "$SERVER_PID"
+fi
