@@ -5,8 +5,9 @@
   "scripts": {
     "dev:web": "cd web && npm run dev",
     "dev:server": "python3 -m faugus.server",
-    "dev:tauri": "cd web && npm run tauri dev",
+    "dev:tauri": "./web/node_modules/.bin/tauri dev",
     "build:web": "cd web && npm run build",
-    "build:tauri": "cd web && npm run tauri build"
+    "build:tauri": "./web/node_modules/.bin/tauri build",
+    "tauri": "./web/node_modules/.bin/tauri"
   }
 }

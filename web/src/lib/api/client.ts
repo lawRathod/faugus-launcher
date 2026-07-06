@@ -217,3 +217,44 @@ export async function setEnvar(vars: string[]): Promise<string[]> {
     body: JSON.stringify(vars),
   });
 }
+
+// ── Steam Shortcuts ────────────────────────────────────────────────
+
+export async function steamShortcut(data: {
+  gameid: string;
+  title: string;
+  path?: string;
+  action: "add" | "remove";
+}): Promise<{ status: string }> {
+  return request("/api/steam/shortcut", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// ── Backup ─────────────────────────────────────────────────────────
+
+export async function createBackup(): Promise<{
+  path: string;
+  size: number;
+  date: string;
+}> {
+  return request("/api/backup/create", { method: "POST" });
+}
+
+export async function restoreBackup(file: File): Promise<{ restored: boolean }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return formRequest("/api/backup/restore", fd);
+}
+
+// ── Custom order ───────────────────────────────────────────────────
+
+export async function saveCustomOrder(
+  order: Record<string, number>
+): Promise<{ saved: boolean }> {
+  return request("/api/games/custom-order", {
+    method: "PUT",
+    body: JSON.stringify({ order }),
+  });
+}

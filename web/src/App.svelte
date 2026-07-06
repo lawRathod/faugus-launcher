@@ -1,12 +1,21 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { Toaster, toast } from "svelte-sonner";
+  import Sidebar from "./lib/components/Sidebar.svelte";
   import Library from "./pages/Library.svelte";
   import Settings from "./pages/Settings.svelte";
-  import { GameState, type GameResponse } from "./lib/api/types";
+  import GameForm from "./pages/GameForm.svelte";
+  import ProtonManager from "./pages/ProtonManager.svelte";
+  import LogViewer from "./pages/LogViewer.svelte";
+  import type { GameResponse } from "./lib/api/types";
+  import * as api from "./lib/api/client";
 
-  let currentPage = $state<"library" | "settings">("library");
+  let currentPage = $state<"library" | "settings" | "add" | "edit" | "proton" | "logs">("library");
   let games = $state<GameResponse[]>([]);
   let loading = $state(true);
+  let editingGame = $state<GameResponse | null>(null);
+  let logGameId = $state<string>("");
+  let sidebarCollapsed = $state(false);
 
   onMount(async () => {
     await loadGames();
@@ -15,46 +24,51 @@
   async function loadGames() {
     loading = true;
     try {
-      const resp = await fetch("/api/games?sort=alpha");
-      games = await resp.json();
+      games = await api.listGames({ sort: "alpha" });
     } catch (e) {
-      console.error("Failed to load games:", e);
+      toast.error("Failed to load games");
     } finally {
       loading = false;
     }
   }
 
-  function navigate(page: "library" | "settings") {
-    currentPage = page;
+  function handleAdd() {
+    editingGame = null;
+    currentPage = "add";
+  }
+
+  function handleEdit(game: GameResponse) {
+    editingGame = game;
+    currentPage = "edit";
+  }
+
+  function handleShowLogs(gameid: string) {
+    logGameId = gameid;
+    currentPage = "logs";
+  }
+
+  function handleSaved() {
+    currentPage = "library";
+    loadGames();
   }
 </script>
 
-<div class="flex h-screen flex-col">
-  <!-- Title bar -->
-  <header class="flex items-center justify-between bg-surface-900 px-4 py-2 border-b border-surface-800" data-tauri-drag-region>
-    <h1 class="text-lg font-bold text-white">Faugus Launcher</h1>
-    <nav class="flex gap-2">
-      <button
-        class="px-3 py-1 rounded text-sm {currentPage === 'library' ? 'bg-blue-600 text-white' : 'bg-surface-800 text-gray-300 hover:bg-surface-700'}"
-        onclick={() => navigate("library")}
-      >
-        Library
-      </button>
-      <button
-        class="px-3 py-1 rounded text-sm {currentPage === 'settings' ? 'bg-blue-600 text-white' : 'bg-surface-800 text-gray-300 hover:bg-surface-700'}"
-        onclick={() => navigate("settings")}
-      >
-        Settings
-      </button>
-    </nav>
-  </header>
+<Toaster position="top-right" richColors />
 
-  <!-- Main content -->
-  <main class="flex-1 overflow-hidden">
+<div class="flex h-screen bg-surface-950 text-white overflow-hidden">
+  <Sidebar {sidebarCollapsed} {currentPage} onNavigate={(p) => (currentPage = p)} onToggle={() => (sidebarCollapsed = !sidebarCollapsed)} />
+
+  <div class="flex-1 flex flex-col overflow-hidden">
     {#if currentPage === "library"}
-      <Library {games} {loading} onrefresh={loadGames} />
-    {:else}
-      <Settings />
+      <Library {games} {loading} onrefresh={loadGames} onadd={handleAdd} onedit={handleEdit} onshowlogs={handleShowLogs} />
+    {:else if currentPage === "settings"}
+      <Settings onback={() => (currentPage = "library")} />
+    {:else if currentPage === "add" || currentPage === "edit"}
+      <GameForm game={editingGame} oncancel={() => (currentPage = "library")} onsaved={handleSaved} />
+    {:else if currentPage === "proton"}
+      <ProtonManager onback={() => (currentPage = "library")} />
+    {:else if currentPage === "logs"}
+      <LogViewer gameid={logGameId} onback={() => (currentPage = "library")} />
     {/if}
-  </main>
+  </div>
 </div>
