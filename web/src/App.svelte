@@ -24,11 +24,15 @@
   async function loadGames() {
     loading = true;
     try {
+      console.log("[faugus] Loading games...");
       games = await api.listGames({ sort: "alpha" });
-    } catch (e) {
-      toast.error("Failed to load games");
+      console.log(`[faugus] Loaded ${games.length} games`);
+    } catch (e: any) {
+      console.error("[faugus] Failed to load games:", e);
+      toast.error(e?.message || "Failed to load games");
     } finally {
       loading = false;
+      console.log("[faugus] Loading complete, games:", games.length);
     }
   }
 
