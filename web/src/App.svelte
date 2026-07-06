@@ -58,7 +58,7 @@
 <div class="flex h-screen bg-surface-950 text-white overflow-hidden">
   <Sidebar {sidebarCollapsed} {currentPage} onNavigate={(p) => (currentPage = p)} onToggle={() => (sidebarCollapsed = !sidebarCollapsed)} />
 
-  <div class="flex-1 flex flex-col overflow-hidden">
+  <div class="flex-1 flex flex-col overflow-hidden page-enter">
     {#if currentPage === "library"}
       <Library {games} {loading} onrefresh={loadGames} onadd={handleAdd} onedit={handleEdit} onshowlogs={handleShowLogs} />
     {:else if currentPage === "settings"}

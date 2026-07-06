@@ -101,8 +101,8 @@
   <!-- Main area -->
   <div class="flex-1 flex flex-col overflow-hidden">
     <!-- Toolbar -->
-    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-surface-800 bg-surface-900/50 backdrop-blur">
-      <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors" onclick={onadd}>
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-surface-800 bg-surface-elevated/80 backdrop-blur-md">
+      <button class="flex items-center gap-1.5 px-4 py-2 btn-primary text-sm font-medium rounded-lg" onclick={onadd}>
         <Plus size={16} /> Add Game
       </button>
 
@@ -116,10 +116,10 @@
         />
       </div>
 
-      <div class="flex items-center gap-1 bg-surface-800 rounded-lg p-0.5">
-        <button class="px-2.5 py-1.5 rounded-md text-sm transition-colors {viewMode === 'list' ? 'bg-surface-700 text-white' : 'text-gray-400 hover:text-white'}" onclick={() => (viewMode = "list")} title="List view"><LayoutList size={16} /></button>
-        <button class="px-2.5 py-1.5 rounded-md text-sm transition-colors {viewMode === 'blocks' ? 'bg-surface-700 text-white' : 'text-gray-400 hover:text-white'}" onclick={() => (viewMode = "blocks")} title="Blocks view"><LayoutGrid size={16} /></button>
-        <button class="px-2.5 py-1.5 rounded-md text-sm transition-colors {viewMode === 'banners' ? 'bg-surface-700 text-white' : 'text-gray-400 hover:text-white'}" onclick={() => (viewMode = "banners")} title="Banners view"><Columns3 size={16} /></button>
+      <div class="flex items-center gap-1 bg-surface-card rounded-lg p-0.5 border border-surface-700">
+        <button class="px-2.5 py-1.5 rounded-md text-sm transition-all {viewMode === 'list' ? 'bg-surface-hover text-white shadow-sm' : 'text-gray-500 hover:text-white'}" onclick={() => (viewMode = "list")} title="List view"><LayoutList size={16} /></button>
+        <button class="px-2.5 py-1.5 rounded-md text-sm transition-all {viewMode === 'blocks' ? 'bg-surface-hover text-white shadow-sm' : 'text-gray-500 hover:text-white'}" onclick={() => (viewMode = "blocks")} title="Blocks view"><LayoutGrid size={16} /></button>
+        <button class="px-2.5 py-1.5 rounded-md text-sm transition-all {viewMode === 'banners' ? 'bg-surface-hover text-white shadow-sm' : 'text-gray-500 hover:text-white'}" onclick={() => (viewMode = "banners")} title="Banners view"><Columns3 size={16} /></button>
       </div>
 
       <select

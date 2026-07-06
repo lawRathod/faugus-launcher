@@ -31,7 +31,7 @@
 </script>
 
 <aside
-  class="flex flex-col bg-surface-900 border-r border-surface-800 transition-all duration-200 shrink-0"
+  class="flex flex-col bg-surface-elevated border-r border-surface-700 transition-all duration-200 shrink-0"
   class:w-56={!sidebarCollapsed}
   class:w-16={sidebarCollapsed}
 >
@@ -47,7 +47,7 @@
   <nav class="flex-1 px-2 py-4 flex flex-col gap-1">
     <button
       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
-      class:bg-surface-800={currentPage === "library"}
+      class:bg-surface-hover={currentPage === "library"}
       class:justify-center={sidebarCollapsed}
       style={currentPage === "library" ? "color: #60a5fa" : "color: #9ca3af"}
       onclick={() => onNavigate("library")}
@@ -57,7 +57,7 @@
     </button>
     <button
       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
-      class:bg-surface-800={currentPage === "settings"}
+      class:bg-surface-hover={currentPage === "settings"}
       class:justify-center={sidebarCollapsed}
       style={currentPage === "settings" ? "color: #60a5fa" : "color: #9ca3af"}
       onclick={() => onNavigate("settings")}
@@ -67,7 +67,7 @@
     </button>
     <button
       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
-      class:bg-surface-800={currentPage === "proton"}
+      class:bg-surface-hover={currentPage === "proton"}
       class:justify-center={sidebarCollapsed}
       style={currentPage === "proton" ? "color: #60a5fa" : "color: #9ca3af"}
       onclick={() => onNavigate("proton")}
@@ -79,7 +79,7 @@
 
   <div class="px-2 py-3 border-t border-surface-800 flex flex-col gap-1">
     <button
-      class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+      class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-surface-hover transition-colors"
       class:justify-center={sidebarCollapsed}
       onclick={toggleTheme}
       title="Toggle theme"
@@ -88,7 +88,7 @@
       {#if !sidebarCollapsed}<span>{isDim ? "Light" : "Dark"}</span>{/if}
     </button>
     <button
-      class="flex items-center justify-center w-full py-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+      class="flex items-center justify-center w-full py-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-hover transition-colors"
       onclick={onToggle}
     >
       {#if sidebarCollapsed}<ChevronRight size={18} />{:else}<ChevronLeft size={18} />{/if}

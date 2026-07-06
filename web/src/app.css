@@ -3,48 +3,201 @@
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ── Rich gaming palette ────────────────────────────────── */
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --accent-subtle: rgba(99, 102, 241, 0.12);
+  --gold: #f59e0b;
+  --gold-glow: rgba(245, 158, 11, 0.3);
+  --surface-base: #0c0c14;
+  --surface-elevated: #13131f;
+  --surface-card: #1a1a2e;
+  --surface-border: #252540;
+  --surface-hover: #2a2a45;
+  --text-primary: #f1f1f7;
+  --text-secondary: #9494b8;
+  --text-muted: #5c5c7a;
+  background-color: var(--surface-base);
+  color: var(--text-primary);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--surface-hover); }
 
-/* ── Dropdown styling ────────────────────────────────────────── */
+/* ── Scroll-smooth container ─────────────────────────────── */
+.snap-container {
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
+/* ── Glass card ──────────────────────────────────────────── */
+.glass {
+  background: rgba(26, 26, 46, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(37, 37, 64, 0.6);
+}
+.glass:hover {
+  background: rgba(26, 26, 46, 0.8);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* ── Game card hover lift ────────────────────────────────── */
+.game-card {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease,
+              border-color 0.2s ease;
+}
+.game-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+}
+
+.game-card-banner {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.35s ease;
+}
+.game-card-banner:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2);
+}
+
+/* ── Primary button glow ─────────────────────────────────── */
+.btn-primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border: none;
+  color: white;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #818cf8, #6366f1);
+  box-shadow: 0 0 24px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* ── Play button ─────────────────────────────────────────── */
+.btn-play {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border: none;
+  color: white;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-play:hover {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
+  transform: scale(1.05);
+}
+
+.btn-stop {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+.btn-stop:hover {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.35);
+  transform: scale(1.05);
+}
+
+/* ── Gold accent for special elements ─────────────────────── */
+.text-gold { color: var(--gold); }
+.bg-gold { background: var(--gold); }
+
+/* ── Dropdown styling ────────────────────────────────────── */
 select {
   -webkit-appearance: none;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239494b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 8px center;
   padding-right: 28px !important;
+  background-color: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  color: var(--text-primary);
+  border-radius: 8px;
 }
-select option { background: #1e293b; color: #e2e8f0; }
+select:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+select option { background: var(--surface-card); color: var(--text-primary); }
 
-/* ── Dim theme overrides ─────────────────────────────────────────
-   Uses higher specificity (.dim parent) to override Tailwind's
-   hardcoded surface-* classes at runtime.                     */
-html.dim .bg-surface-950,
-html.dim .bg-surface-950\/50 { background-color: #f8fafc !important; }
-html.dim .bg-surface-900,
-html.dim .bg-surface-900\/50 { background-color: #ffffff !important; }
-html.dim .bg-surface-800 { background-color: #f1f5f9 !important; }
-html.dim .bg-surface-700 { background-color: #e2e8f0 !important; }
-html.dim .border-surface-800 { border-color: #cbd5e1 !important; }
-html.dim .border-surface-700 { border-color: #cbd5e1 !important; }
-html.dim .text-white { color: #0f172a !important; }
-html.dim .text-gray-400 { color: #475569 !important; }
-html.dim .text-gray-500 { color: #64748b !important; }
-html.dim .text-gray-300 { color: #334155 !important; }
-html.dim .text-gray-200 { color: #1e293b !important; }
-html.dim .hover\:bg-surface-800:hover { background-color: #e2e8f0 !important; }
-html.dim .hover\:bg-surface-700:hover { background-color: #cbd5e1 !important; }
-html.dim .hover\:text-white:hover { color: #0f172a !important; }
-html.dim select option { background: #ffffff; color: #0f172a; }
+/* ── Input styling ──────────────────────────────────────── */
+input, textarea {
+  background-color: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  color: var(--text-primary);
+  border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input:focus, textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+input::placeholder { color: var(--text-muted); }
+
+/* ── Theme overrides ─────────────────────────────────────── */
+.dim {
+  --surface-base: #f4f4f7;
+  --surface-elevated: #ffffff;
+  --surface-card: #ffffff;
+  --surface-border: #d4d4e0;
+  --surface-hover: #e8e8f0;
+  --text-primary: #181825;
+  --text-secondary: #5c5c7a;
+  --text-muted: #9494b8;
+  --accent-subtle: rgba(99, 102, 241, 0.08);
+}
+
+.dim select option { background: #ffffff; color: #181825; }
+
+/* ── Page transition ─────────────────────────────────────── */
+.page-enter {
+  animation: fadeSlideIn 0.25s ease-out;
+}
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Skeleton pulse ──────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-card) 25%, var(--surface-hover) 50%, var(--surface-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Context menu ────────────────────────────────────────── */
+.context-menu {
+  background: rgba(26, 26, 46, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+.context-menu button {
+  transition: background 0.1s ease;
+}
+.context-menu button:hover {
+  background: var(--surface-hover);
+}
