@@ -140,7 +140,7 @@
         <div class="flex flex-col items-center justify-center h-full text-gray-500 gap-2">
           <Gamepad2 size={48} class="text-gray-700" />
           <p class="text-lg">No games found</p>
-          {#if searchQuery || categoryFilter !== "all"}
+          {#if searchQuery}
             <p class="text-sm">Try changing your search or filters</p>
           {:else}
             <p class="text-sm">Click "Add Game" to get started</p>
