@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Gamepad2, Settings as SettingsIcon, Library as LibraryIcon, ChevronLeft, ChevronRight } from "lucide-svelte";
+  import { Gamepad2, Settings as SettingsIcon, Library as LibraryIcon, ChevronLeft, ChevronRight, Sun, Moon } from "lucide-svelte";
 
   let {
     sidebarCollapsed,
@@ -12,6 +12,22 @@
     onNavigate: (page: string) => void;
     onToggle: () => void;
   } = $props();
+
+  let isDim = $state(false);
+
+  try {
+    const saved = localStorage.getItem("faugus-theme");
+    if (saved === "dim") {
+      isDim = true;
+      document.documentElement.classList.add("dim");
+    }
+  } catch {}
+
+  function toggleTheme() {
+    isDim = !isDim;
+    document.documentElement.classList.toggle("dim");
+    try { localStorage.setItem("faugus-theme", isDim ? "dim" : "dark"); } catch {}
+  }
 </script>
 
 <aside
@@ -39,7 +55,6 @@
       <LibraryIcon size={20} />
       {#if !sidebarCollapsed}<span>Library</span>{/if}
     </button>
-
     <button
       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
       class:bg-surface-800={currentPage === "settings"}
@@ -50,7 +65,6 @@
       <SettingsIcon size={20} />
       {#if !sidebarCollapsed}<span>Settings</span>{/if}
     </button>
-
     <button
       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors"
       class:bg-surface-800={currentPage === "proton"}
@@ -63,8 +77,20 @@
     </button>
   </nav>
 
-  <div class="px-2 py-3 border-t border-surface-800">
-    <button class="flex items-center justify-center w-full py-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors" onclick={onToggle}>
+  <div class="px-2 py-3 border-t border-surface-800 flex flex-col gap-1">
+    <button
+      class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+      class:justify-center={sidebarCollapsed}
+      onclick={toggleTheme}
+      title="Toggle theme"
+    >
+      {#if isDim}<Sun size={18} />{:else}<Moon size={18} />{/if}
+      {#if !sidebarCollapsed}<span>{isDim ? "Light" : "Dark"}</span>{/if}
+    </button>
+    <button
+      class="flex items-center justify-center w-full py-2 rounded-lg text-gray-400 hover:text-white hover:bg-surface-800 transition-colors"
+      onclick={onToggle}
+    >
       {#if sidebarCollapsed}<ChevronRight size={18} />{:else}<ChevronLeft size={18} />{/if}
     </button>
   </div>

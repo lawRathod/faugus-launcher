@@ -68,7 +68,10 @@ def _locked_games() -> Iterator[list[dict]]:
 
 @contextmanager
 def _locked_running() -> Iterator[dict[str, int]]:
-    """Read running_games.json under an exclusive file lock."""
+    """Read running_games.json under an exclusive file lock.
+
+    Gracefully handles corrupted JSON by resetting to ``{}``.
+    """
     path = pm.running_games
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a+") as f:
@@ -76,7 +79,13 @@ def _locked_running() -> Iterator[dict[str, int]]:
         try:
             f.seek(0)
             raw = f.read()
-            running: dict[str, int] = json.loads(raw) if raw.strip() else {}
+            if raw.strip():
+                try:
+                    running: dict[str, int] = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    running = {}
+            else:
+                running = {}
             yield running
             f.seek(0)
             f.truncate()
