@@ -154,7 +154,7 @@
           class:grid-cols-4={viewMode === "banners"}
         >
           {#each filtered as game (game.gameid)}
-            <GameCard {game} mode={viewMode} onrefresh />
+            <GameCard {game} mode={viewMode} {onrefresh} onedit={(g) => onedit(g)} />
           {/each}
         </div>
       {/if}

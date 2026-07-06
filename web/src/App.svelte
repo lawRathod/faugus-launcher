@@ -47,9 +47,9 @@
     currentPage = "logs";
   }
 
-  function handleSaved() {
+  async function handleSaved() {
     currentPage = "library";
-    loadGames();
+    await loadGames();
   }
 </script>
 
@@ -58,6 +58,7 @@
 <div class="flex h-screen bg-surface-950 text-white overflow-hidden">
   <Sidebar {sidebarCollapsed} {currentPage} onNavigate={(p) => (currentPage = p)} onToggle={() => (sidebarCollapsed = !sidebarCollapsed)} />
 
+  {#key currentPage}
   <div class="flex-1 flex flex-col overflow-hidden page-enter">
     {#if currentPage === "library"}
       <Library {games} {loading} onrefresh={loadGames} onadd={handleAdd} onedit={handleEdit} onshowlogs={handleShowLogs} />
@@ -71,4 +72,5 @@
       <LogViewer gameid={logGameId} onback={() => (currentPage = "library")} />
     {/if}
   </div>
+{/key}
 </div>

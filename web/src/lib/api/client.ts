@@ -5,28 +5,45 @@
  * during development, or directly served by the Tauri sidecar in production.
  */
 
-const BASE = ""; // Same origin — Vite proxy or Tauri sidecar
+const BASE = "";
+const TIMEOUT = 10000; // 10s timeout // Same origin — Vite proxy or Tauri sidecar
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${BASE}${path}`;
-  const resp = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    ...options,
-  });
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
-    throw new Error(`HTTP ${resp.status} ${resp.statusText}: ${body}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT);
+  try {
+    const url = `${BASE}${path}`;
+    const resp = await fetch(url, {
+      ...options,
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => "");
+      throw new Error(`HTTP ${resp.status} ${resp.statusText}: ${body}`);
+    }
+    return resp.json();
+  } catch (e: any) {
+    if (e.name === "AbortError") throw new Error("Request timed out");
+    throw e;
+  } finally {
+    clearTimeout(timer);
   }
-  return resp.json();
 }
 
 function formRequest<T>(path: string, formData: FormData): Promise<T> {
-  return fetch(`${BASE}${path}`, { method: "POST", body: formData }).then(
-    (r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    }
-  );
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT);
+  try {
+    return fetch(`${BASE}${path}`, { method: "POST", body: formData, signal: controller.signal }).then(
+      (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }
+    );
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── Games ───────────────────────────────────────────────────────────
@@ -80,7 +97,7 @@ export async function updateGame(
 }
 
 export async function deleteGame(gameid: string): Promise<void> {
-  await fetch(`${BASE}/api/games/${gameid}`, { method: "DELETE" });
+  await rawFetch(`/api/games/${gameid}`, { method: "DELETE" });
 }
 
 export async function launchGame(gameid: string): Promise<{
@@ -91,7 +108,7 @@ export async function launchGame(gameid: string): Promise<{
 }
 
 export async function killGame(gameid: string): Promise<void> {
-  await fetch(`${BASE}/api/games/${gameid}/kill`, { method: "POST" });
+  await rawFetch(`/api/games/${gameid}/kill`, { method: "POST" });
 }
 
 export async function duplicateGame(

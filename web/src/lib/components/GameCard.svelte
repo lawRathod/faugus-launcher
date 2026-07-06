@@ -2,10 +2,11 @@
   import type { GameResponse } from "../api/types";
   import { deleteGame, launchGame, killGame, getRunningGames, getIconUrl, getBannerUrl } from "../api/client";
 
-  let { game, mode, onrefresh }: {
+  let { game, mode, onrefresh, onedit }: {
     game: GameResponse;
     mode: "list" | "blocks" | "banners";
     onrefresh: () => void;
+    onedit?: (game: GameResponse) => void;
   } = $props();
 
   let running = $state(false);
@@ -13,12 +14,14 @@
 
   $effect(() => {
     // Check if game is running
-    getRunningGames().then((r) => {
-      running = game.gameid in r;
-    });
+    getRunningGames()
+      .then((r) => { running = game.gameid in r; })
+      .catch(() => {});
     const interval = setInterval(async () => {
-      const r = await getRunningGames();
-      running = game.gameid in r;
+      try {
+        const r = await getRunningGames();
+        running = game.gameid in r;
+      } catch { /* keep previous state */ }
     }, 3000);
     return () => clearInterval(interval);
   });
